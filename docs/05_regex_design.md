@@ -725,7 +725,8 @@ The initial pattern is:
 
 ```python
 PROGRAMMING_LANGUAGES_PATTERN = (
-    r"\b(?:JavaScript|Javascript|JS|TypeScript|Python|SQL|Bash)\b"
+    r"\b(?:JavaScript|Javascript|TypeScript|Python|SQL|Bash)\b"
+    r"|(?<![\w.])JS(?!\w)"
 )
 ```
 
@@ -999,17 +1000,17 @@ The initial academic qualification pattern is:
 
 ```python
 ACADEMIC_QUALIFICATIONS_PATTERN = (
-    r"\b(?:"
-    r"Bachelor(?:'s)?"
+    r"(?:"
+    r"Bachelor(?:['’]s)?"
     r"|B\.?Sc\.?"
-    r"|Master(?:'s)?"
+    r"|Master(?:['’]s)?"
     r"|M\.?Sc\.?"
     r"|Ph\.?D\.?"
     r"|Computer\s+Science"
     r"|Software\s+Engineering"
     r"|Systems\s+Engineering"
     r"|Data\s+Science"
-    r")\b"
+    r")(?!\w)"
 )
 ```
 
@@ -1246,9 +1247,9 @@ The initial pattern is:
 ```python
 OTHER_QUALIFICATIONS_PATTERN = (
     r"\b(?:"
-    r"REST\s+APIs?"
+    r"Machine[-\s]Learning\s+Model\s+Development"
+    r"|REST\s+APIs?"
     r"|Machine[-\s]Learning"
-    r"|Machine[-\s]Learning\s+Model\s+Development"
     r"|Vulnerability\s+Assessment"
     r"|Cyber\s*Security"
     r"|Cybersecurity"
@@ -2015,7 +2016,7 @@ The extraction stage should therefore not assign a profile based only on the pre
 
 ### 13.3 Context
 
-Regular expressions recognize textual patterns but do not fully understand the context in which a term appears.
+Regular expressions recognize textual patterns but do not fully understand the context in which a term appears.The regex-based extraction approach may produce false positives when a qualification appears in a different semantic context. ResumeLens does not perform semantic analysis or natural-language understanding at this stage, since the objective of this stage is lexical extraction using regular expressions.
 
 For example:
 
