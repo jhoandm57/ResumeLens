@@ -29,3 +29,19 @@ Where $Q$ is a finite set of states, $\Sigma$ is the input alphabet, $\Gamma$ is
 As demonstrated by **Silfverberg & Hulden (2021)**, FSTs provide linear time $O(n)$ string rewriting capability, enabling deterministic morphological normalization[cite: 1]. Unlike simple dictionary replacements, FSTs gracefully model stateful string rewriting, prefix handling, and character-level transformations[cite: 1].
 
 - **Role in ResumeLens**: FSTs translate raw extracted tokens into standardized canonical skill representations and reorder them into canonical sequences (e.g., Frontend $\rightarrow$ Backend $\rightarrow$ Database $\rightarrow$ Version Control)[cite: 1].
+
+---
+
+## 4. Stage 3: Qualification Pattern Recognition via Finite Automata
+
+Once qualifications are normalized and sorted into canonical sequences, the system must evaluate whether the candidate satisfies the qualification pattern required by a professional profile[cite: 1].
+
+A **Deterministic Finite Automaton (DFA)** or **Nondeterministic Finite Automaton (NFA)** recognizes regular languages[cite: 1]. Formally, a DFA is defined as a 5-tuple:
+
+$$M = (Q, \Sigma, \delta, q_0, F)$$
+
+Where $Q$ is a finite set of states, $\Sigma$ is the alphabet of canonical qualification tokens, $\delta$ is the transition function, $q_0$ is the start state, and $F$ is the set of accepting states[cite: 1].
+
+Recent work by **Prasad & Kumar (2022)** emphasizes that finite-state acceptors provide an ideal mathematical foundation for sequential pattern validation, guaranteeing $O(n)$ recognition time without false positives.
+
+- **Role in ResumeLens**: Distinct automata represent professional profiles (e.g., Full Stack Developer, Machine Learning Engineer)[cite: 1]. A résumé sequence is classified as `ACCEPTED` or `REJECTED` for a profile based on automaton state transitions[cite: 1].
