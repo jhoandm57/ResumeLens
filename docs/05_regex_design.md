@@ -124,7 +124,6 @@ NumPy
 Scikit-learn
 Scikit learn
 Scikitlearn
-sklearn
 
 TensorFlow
 Tensor Flow
@@ -419,7 +418,6 @@ NumPy
 Scikit-learn
 Scikit learn
 Scikitlearn
-sklearn
 
 TensorFlow
 Tensor Flow
@@ -805,7 +803,6 @@ FRAMEWORKS_LIBRARIES_PATTERN = (
     r"|Pandas"
     r"|NumPy"
     r"|Scikit[-\s]?learn"
-    r"|sklearn"
     r"|Tensor\s*Flow"
     r"|Py\s*Torch"
     r"|Apache\s+Spark"
@@ -892,7 +889,7 @@ means one or more whitespace characters.
 The expression:
 
 ```regex
-Scikit[-\s]?learn|sklearn
+Scikit[-\s]?learn
 ```
 
 recognizes:
@@ -901,10 +898,7 @@ recognizes:
 Scikit-learn
 Scikit learn
 Scikitlearn
-sklearn
 ```
-
-`sklearn` is included as a separate alternative because it is the name used to import the library in Python (`import sklearn`), and it is commonly written in résumés.
 
 The part:
 
@@ -1325,217 +1319,6 @@ Cybersecurity
 Cyber Security
 ```
 
-### 4.10 Formal Definition of the Recognized Languages
-
-Each regular expression of the extraction stage denotes a **regular language**: the set of strings that the expression accepts. This section describes, for each pattern, the language it recognizes, together with examples of strings that belong and do not belong to it.
-
-#### Notation
-
-```text
-Σ        Alphabet: the set of characters that can appear in résumé text.
-Letter   {a, ..., z, A, ..., Z}
-Digit    {0, ..., 9}
-WS       Whitespace characters {space, tab, newline, ...}
-ε        Empty string
-
-X ∪ Y    Union          (regex: X|Y)
-X · Y    Concatenation  (regex: XY)
-X*       Kleene star: zero or more repetitions
-X⁺       One or more repetitions (X · X*)
-X?       Optional: X ∪ {ε}
-X^{m,n}  Between m and n repetitions
-
-[w]      All case variants of the word w, because matching uses re.IGNORECASE.
-         Example: [Git] = {git, Git, GIT, gIT, ...}
-```
-
-Since every language below is built from finite sets using only union, concatenation, and Kleene closure, all of them are regular. Therefore, each one could also be recognized by a finite automaton.
-
-The word boundaries (`\b`) and lookarounds (`(?<!...)`, `(?!...)`) do not add new strings to the language. They only restrict **the context** in which a string is accepted inside the résumé text. For example, `Git` is not extracted from `GitHub`.
-
-#### 4.10.1 Email
-
-```text
-A = Letter ∪ Digit ∪ {., _, %, +, -}
-B = Letter ∪ Digit ∪ {., -}
-
-L_EMAIL = A⁺ · {@} · B⁺ · {.} · Letter^{2,}
-```
-
-An email is a non-empty local part, the symbol `@`, a non-empty domain, a dot, and an extension of at least two letters.
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `mary.watson@email.com` | `mary.watson@` | Missing domain |
-| `peter_parker@company.co` | `@gmail.com` | Empty local part |
-| `john.smith@gmail.com` | `user@domain.c` | Extension with fewer than 2 letters |
-
-#### 4.10.2 Phone Number
-
-```text
-Sep = WS ∪ {., -}
-
-Country = ({+} ∪ {ε}) · Digit^{1,3} · Sep?
-Area    = ({(} ∪ {ε}) · Digit^{2,4} · ({)} ∪ {ε}) · Sep?
-Number  = Digit^{3} · Sep? · Digit^{3,4} · (Sep? · Digit^{2,4})?
-
-L_PHONE = Country? · Area? · Number
-```
-
-In addition, the match cannot be immediately preceded or followed by another digit.
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `+57 300 1234567` | `12345` | Fewer than 6 digits in the main number |
-| `300 123 4567` | `123` | Too short |
-| `+57-300-1234567` | | |
-
-**Known limitation:** the language is broad, so strings that are not phone numbers, such as the year range `2001-2004`, also belong to `L_PHONE` (see Section 13.4).
-
-#### 4.10.3 Programming Languages
-
-```text
-L_LANG = [JavaScript] ∪ [TypeScript] ∪ [Python] ∪ [SQL] ∪ [Bash] ∪ [JS]
-```
-
-This is a **finite language** (up to case variants). `Javascript` is already included in `[JavaScript]`.
-
-Context restrictions:
-
-- Words must be complete: `\b` on both sides.
-- `JS` cannot be preceded by a letter, digit, `_`, or `.`, so it is not extracted from `React.js`, `Node.js`, or `Next.js`.
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `JS` | `js` inside `React.js` | Preceded by `.` |
-| `python` | `Pythonic` | Not a complete word |
-| `TypeScript` | `Java` | Not in the vocabulary |
-
-#### 4.10.4 Frameworks and Libraries
-
-```text
-L_FW = [React] · ({.js} ∪ {JS} ∪ {ε})
-     ∪ [Angular] ∪ [Vue] ∪ [Django] ∪ [Pandas] ∪ [NumPy]
-     ∪ [Node] · ({.js} ∪ {JS})
-     ∪ [Spring] · WS⁺ · [Boot]
-     ∪ [Scikit] · ({-} ∪ WS ∪ {ε}) · [learn]
-     ∪ [sklearn]
-     ∪ [Tensor] · WS* · [Flow]
-     ∪ [Py] · WS* · [Torch]
-     ∪ ([Apache] · WS⁺)? · [Spark]
-     ∪ ([Apache] · WS⁺)? · [Airflow]
-```
-
-Because of `WS⁺` and `WS*`, this language is **infinite**: `Spring Boot`, `Spring  Boot`, and `Spring   Boot` are all different strings of the language.
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `React.js`, `ReactJS`, `React` | `Node` | The `.js` / `JS` suffix is mandatory |
-| `NodeJS`, `Node.js` | `Vuex` | Not a complete word |
-| `Scikit-learn`, `Scikitlearn`, `sklearn` | `Flask` | Not in the vocabulary |
-| `Tensor Flow`, `PyTorch` | | |
-
-#### 4.10.5 Databases
-
-```text
-L_DB = [PostgreSQL] ∪ [Postgres] ∪ [NoSQL] ∪ [SQL]
-```
-
-This is a finite language. `PostgreSQL` is placed before `Postgres` in the pattern so that the longest form is extracted.
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `PostgreSQL` | `MySQL` | `SQL` is not a complete word inside `MySQL` |
-| `Postgres` | `MongoDB` | Not in the vocabulary |
-| `NoSQL` | | |
-
-#### 4.10.6 Academic Qualifications
-
-```text
-Apos = {', ’}
-
-L_ACAD = [Bachelor] · (Apos · [s])?
-       ∪ [B] · {.}? · [Sc] · {.}?
-       ∪ [Master] · (Apos · [s])?
-       ∪ [M] · {.}? · [Sc] · {.}?
-       ∪ [Ph] · {.}? · [D] · {.}?
-       ∪ [Computer] · WS⁺ · [Science]
-       ∪ [Software] · WS⁺ · [Engineering]
-       ∪ [Systems] · WS⁺ · [Engineering]
-       ∪ [Data] · WS⁺ · [Science]
-```
-
-Context restriction: the match cannot be followed by a letter, digit, or `_` (`(?!\w)`). A final `\b` is not used because forms such as `Ph.D.` and `B.Sc.` end with a period.
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `Bachelor's`, `Bachelor’s` | `Masters` | Followed by a letter without an apostrophe |
-| `B.Sc.`, `BSc` | `Bachelors` | Followed by a letter without an apostrophe |
-| `Ph.D.`, `PhD` | | |
-| `Data Science` | | |
-
-#### 4.10.7 Professional Experience
-
-```text
-L_EXP = Digit⁺ · {+}? · WS* · ([year] ∪ [years] ∪ [yr] ∪ [yrs])
-        · (WS⁺ · [of])? · WS⁺ · [experience]
-```
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `3 years of experience` | `years of experience` | Missing number |
-| `5+ yrs experience` | `three years of experience` | The number is written in words |
-| `2 yrs of experience` | `4 years of professional experience` | An extra word appears before `experience` |
-
-#### 4.10.8 Tools and Technologies
-
-```text
-L_TOOLS = [Git] ∪ [Docker] ∪ [Kubernetes] ∪ [Nmap]
-        ∪ [TCP] · WS* · {/}? · WS* · [IP]
-        ∪ [Networking] ∪ [Network]
-        ∪ [ETL] ∪ [ELT]
-        ∪ [Data] · WS⁺ · [Pipeline] · [s]?
-        ∪ [Data] · WS⁺ · [Warehousing]
-        ∪ [Data] · WS⁺ · [Warehouse]
-```
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `Git` | `GitHub` | Not a complete word |
-| `TCP/IP`, `TCP / IP`, `TCP IP` | `Jenkins` | Not in the vocabulary |
-| `Data Pipelines` | | |
-
-#### 4.10.9 Other Relevant Qualifications
-
-```text
-MLSep = {-} ∪ WS
-
-L_OTHER = [Machine] · MLSep · [Learning] · WS⁺ · [Model] · WS⁺ · [Development]
-        ∪ [REST] · WS⁺ · [API] · [s]?
-        ∪ [Machine] · MLSep · [Learning]
-        ∪ [Vulnerability] · WS⁺ · [Assessment]
-        ∪ [Cyber] · WS* · [Security]
-        ∪ [Security] · WS⁺ · [Automation]
-```
-
-`Cybersecurity` already belongs to `[Cyber] · WS* · [Security]` (with zero spaces).
-
-| Accepted | Rejected | Reason for rejection |
-| :--- | :--- | :--- |
-| `Machine-Learning Model Development` | `ML` | Abbreviation not in the vocabulary |
-| `REST API`, `REST APIs` | `RESTful` | Not a complete word |
-| `Cyber Security`, `Cybersecurity` | | |
-
-#### 4.10.10 Language of the Complete Extraction Stage
-
-The set of all qualifications that the extraction stage can recognize is the union of the previous languages:
-
-```text
-L_EXTRACTION = L_LANG ∪ L_FW ∪ L_DB ∪ L_ACAD ∪ L_EXP ∪ L_TOOLS ∪ L_OTHER
-```
-
-Since regular languages are closed under union, `L_EXTRACTION` is also regular. Contact information (`L_EMAIL` and `L_PHONE`) is extracted separately because it identifies the candidate but is not a qualification.
-
 ---
 
 ## 5. Case-Insensitive Matching
@@ -1678,7 +1461,6 @@ PANDAS
 Scikit-learn
 Scikit learn
 Scikitlearn
-sklearn
 ```
 
 Later normalization:
@@ -1687,7 +1469,6 @@ Later normalization:
 Scikit-learn
 Scikit learn
 Scikitlearn
-sklearn
         ↓
 SCIKIT_LEARN
 ```
