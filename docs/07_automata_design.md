@@ -1102,3 +1102,59 @@ python -m src.visualization.dfa_export --markdown A_FS
 ```
 
 The `.svg` files are generated only if the Graphviz program `dot` is installed.
+
+---
+
+## 9. Test Cases for this Stage
+
+Tests in `tests/classification/`. Run them from the root of the project with `python -m pytest`.
+
+### 9.1 Structure of the automata (`test_automata_builder.py`)
+
+| Test | Expected result |
+| :--- | :--- |
+| One automaton per profile | 4 automata |
+| Size of the automata | size of Q, size of Σ and transitions of Section 7 |
+| Alphabet | `Σ` = tokens of the canonical order of the profile |
+| States | one state per token + `q0`; initial state `q0` |
+| Accepting states | only the state of `GIT` |
+| Determinism | `is_deterministic()` and no repeated pair `(q, a)` |
+| Transitions | every transition with `tj` goes to `qj` |
+| Minimality | `minimize()` keeps the same number of states |
+| Exhaustive test | for **every** sorted subset of the tokens of each profile (8192 sequences for Full Stack), the automaton accepts iff every mandatory group has at least one token |
+| Unsorted sequence | `REACT, JAVASCRIPT, ...` → rejected |
+| Repeated token | `JAVASCRIPT, JAVASCRIPT, ...` → rejected |
+| Token of other profile | `PANDAS` in `A_FS` → rejected |
+| Run | trace `q0 → q1 → q3 → q6 → q11 → q13` for the statement example; trap state when `δ` is not defined |
+
+### 9.2 Classification (`test_resume_classifier.py`)
+
+| Profile | Sequence | Expected |
+| :--- | :--- | :---: |
+| Full Stack | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT` | ACCEPTED |
+| Full Stack | `TYPESCRIPT, ANGULAR, VUE, SPRING_BOOT, REST_API, SQL, NOSQL, GIT` | ACCEPTED |
+| Machine Learning | `PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT` | ACCEPTED |
+| Machine Learning | `PYTHON, NUMPY, PYTORCH, ML_MODEL_DEVELOPMENT, SQL, GIT` | ACCEPTED |
+| Cybersecurity | `PYTHON, LINUX, TCP_IP, NMAP, DOCKER, GIT` | ACCEPTED |
+| Cybersecurity | `BASH, LINUX, NETWORKING, VULNERABILITY_ASSESSMENT, GIT` | ACCEPTED |
+| Data Engineer | `PYTHON, SQL, SPARK, AIRFLOW, ETL, POSTGRESQL, GIT` | ACCEPTED |
+| Data Engineer | `SQL, SPARK, ELT, DATA_PIPELINE, DATA_WAREHOUSING, GIT` | ACCEPTED |
+| Full Stack | `JAVASCRIPT, REACT, POSTGRESQL, GIT` | REJECTED (missing Backend) |
+| Full Stack | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL` | REJECTED (missing Version control) |
+| Full Stack | ε (empty) | REJECTED |
+| Machine Learning | `PYTHON, PANDAS, NUMPY, SQL, GIT` | REJECTED (missing ML libraries) |
+| Machine Learning | `PANDAS, SCIKIT_LEARN, SQL, GIT` | REJECTED (missing Language) |
+| Cybersecurity | `PYTHON, LINUX, NMAP, DOCKER, GIT` | REJECTED (missing Networking) |
+| Cybersecurity | `PYTHON, LINUX, TCP_IP, DOCKER, GIT` | REJECTED (missing Security) |
+| Data Engineer | `PYTHON, SQL, AIRFLOW, ETL, POSTGRESQL, GIT` | REJECTED (missing Processing) |
+| Data Engineer | `PYTHON, SPARK, AIRFLOW, ETL, GIT` | REJECTED (missing Storage) |
+| Machine Learning | `GIT, POSTGRESQL, TENSORFLOW, PANDAS, PYTHON` (unsorted) | REJECTED by the automaton; ACCEPTED with `classify_tokens` (sorts first) |
+
+### 9.3 Complete pipeline
+
+| Scenario | Expected |
+| :--- | :--- |
+| The four reference résumés (Wednesday Addams, Mary Jane Watson, Peter Parker, Clark Kent) | each one ACCEPTED by its profile |
+| Wednesday Addams | accepted **only** as Full Stack Developer |
+| Résumé without qualifications | rejected by the four profiles |
+| `classify_resume` | keeps the `NormalizedData` and returns one decision per profile |
