@@ -77,6 +77,7 @@ TOOLS_VOCABULARY = {
     "docker": "DOCKER",
     "kubernetes": "KUBERNETES",
     "nmap": "NMAP",
+    "linux": "LINUX",
     "tcp/ip": "TCP_IP",
     "tcp ip": "TCP_IP",
     "tcp / ip": "TCP_IP",

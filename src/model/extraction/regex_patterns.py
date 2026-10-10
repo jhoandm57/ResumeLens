@@ -15,12 +15,21 @@ EMAIL_PATTERN = (
     r"\.[A-Za-z]{2,}\b"
 )
 
+# A phone number is accepted in two forms:
+#
+#   1. With country code (+):       +57 300 1234567, +57-300-123-4567
+#   2. Without country code, the 3-3-4 groups must be separated:
+#                                   300 123 4567, (300) 123-4567
+#
+# Long numbers without separators and without "+" (for example
+# 1234567890) are not accepted, because they cannot be distinguished
+# from ID numbers. Year ranges such as 2001-2004 are not accepted either.
 PHONE_PATTERN = (
-    r"(?<!\d)"
-    r"(?:\+?\d{1,3}[\s.-]?)?"
-    r"(?:\(?\d{2,4}\)?[\s.-]?)?"
-    r"\d{3}[\s.-]?\d{3,4}"
-    r"(?:[\s.-]?\d{2,4})?"
+    r"(?<![\w+])"
+    r"(?:"
+    r"\+\d{1,3}[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}"
+    r"|\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}"
+    r")"
     r"(?!\d)"
 )
 
@@ -61,6 +70,7 @@ FRAMEWORKS_LIBRARIES_PATTERN = (
     r"|Pandas"
     r"|NumPy"
     r"|Scikit[-\s]?learn"
+    r"|sklearn"
     r"|Tensor\s*Flow"
     r"|Py\s*Torch"
     r"|Apache\s+Spark"
@@ -89,6 +99,9 @@ DATABASES_PATTERN = (
 # Academic qualifications
 # -------------------------------------------------------------------
 
+# \b at the beginning prevents matches inside other words
+# (for example, "master" inside "Webmaster").
+#
 # (?!\w) is used instead of a final \b because qualifications
 # such as Ph.D. and B.Sc. can end with a period.
 #
@@ -97,7 +110,7 @@ DATABASES_PATTERN = (
 #   Bachelor’s
 #
 ACADEMIC_QUALIFICATIONS_PATTERN = (
-    r"(?:"
+    r"\b(?:"
     r"Bachelor(?:['’]s)?"
     r"|B\.?Sc\.?"
     r"|Master(?:['’]s)?"
@@ -115,11 +128,20 @@ ACADEMIC_QUALIFICATIONS_PATTERN = (
 # Professional experience
 # -------------------------------------------------------------------
 
+# The lookbehinds prevent taking only part of a number:
+#   1.5 years of experience   -> not extracted (instead of "5 years ...")
+#   10-15 years of experience -> not extracted (instead of "15 years ...")
+#
+# The optional word "professional" supports:
+#   4 years of professional experience
 EXPERIENCE_PATTERN = (
+    r"(?<![\d.,\-–])"
+    r"(?<![\-–]\s)"
     r"\b"
     r"\d+\+?"
     r"\s*(?:years?|yrs?)"
     r"(?:\s+of)?"
+    r"(?:\s+professional)?"
     r"\s+experience"
     r"\b"
 )
@@ -135,6 +157,7 @@ TOOLS_TECHNOLOGIES_PATTERN = (
     r"|Docker"
     r"|Kubernetes"
     r"|Nmap"
+    r"|Linux"
     r"|TCP\s*/?\s*IP"
     r"|Networking"
     r"|Network"

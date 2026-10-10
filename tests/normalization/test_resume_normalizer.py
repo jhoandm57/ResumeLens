@@ -7,6 +7,8 @@ from src.model.normalization.profile_order import (
     CYBERSECURITY_ENGINEER,
     DATA_ENGINEER,
 )
+from src.model.normalization.fst_builder import translate
+from src.model.normalization import resume_normalizer
 from src.model.normalization.resume_normalizer import normalize_resume
 
 
@@ -101,3 +103,67 @@ def test_empty_resume():
     assert result.qualifications == []
     assert result.experience_years is None
     assert all(sequence == [] for sequence in result.profile_sequences.values())
+
+
+def test_contact_information_is_kept():
+    resume = "Peter Parker peter@mail.com +57 300 123 4567"
+
+    result = normalize_resume(extract_resume_information(resume))
+
+    assert result.emails == ["peter@mail.com"]
+    assert result.phones == ["+57 300 123 4567"]
+
+
+def test_cybersecurity_example_of_the_profiles():
+    # Example of docs/04_profiles.md (Peter Parker)
+    resume = """
+    Peter Parker
+    2 years of experience in infrastructure security and security automation.
+    Technical Skills:
+    Python, Linux, TCP/IP, Docker, Nmap, Git.
+    """
+
+    result = normalize_resume(extract_resume_information(resume))
+
+    assert result.profile_sequences[CYBERSECURITY_ENGINEER] == [
+        "PYTHON", "LINUX", "TCP_IP", "NMAP", "SECURITY_AUTOMATION", "DOCKER", "GIT",
+    ]
+
+
+def test_everything_extracted_by_stage_1_is_normalized():
+    # If a variant is added to the regular expressions but not to the
+    # vocabulary, this test fails instead of losing the value silently.
+    resume = """
+    JavaScript, Javascript, JS, TypeScript, Python, SQL, Bash.
+    React, React.js, ReactJS, Angular, Vue, Node.js, NodeJS, Django,
+    Spring Boot, Pandas, NumPy, Scikit-learn, Scikit learn, Scikitlearn,
+    sklearn, TensorFlow, Tensor Flow, PyTorch, Py Torch, Apache Spark,
+    Spark, Apache Airflow, Airflow.
+    PostgreSQL, Postgres, NoSQL.
+    Git, Docker, Kubernetes, Nmap, Linux, TCP/IP, TCP IP, TCP / IP, TCPIP,
+    Networking, Network, ETL, ELT, Data Pipeline, Data Pipelines,
+    Data Warehouse, Data Warehousing.
+    Machine Learning Model Development, Machine-Learning, REST API, REST APIs,
+    Vulnerability Assessment, Cybersecurity, Cyber Security, Security Automation.
+    Bachelor's, Bachelor’s, B.Sc., BSc, Master's, M.Sc., MSc, Ph.D., PhD,
+    Computer Science, Software Engineering, Systems Engineering, Data Science.
+    3 years of experience, 5+ yrs experience, 4 years of professional experience.
+    """
+
+    extracted = extract_resume_information(resume)
+
+    categories = [
+        (resume_normalizer.LANGUAGES_FST, extracted.programming_languages),
+        (resume_normalizer.FRAMEWORKS_FST, extracted.frameworks_libraries),
+        (resume_normalizer.DATABASES_FST, extracted.databases),
+        (resume_normalizer.TOOLS_FST, extracted.tools_technologies),
+        (resume_normalizer.OTHER_FST, extracted.other_qualifications),
+        (resume_normalizer.ACADEMIC_FST, extracted.academic_qualifications),
+        (resume_normalizer.EXPERIENCE_FST, extracted.professional_experience),
+    ]
+
+    for fst, values in categories:
+        assert values != []
+
+        for value in values:
+            assert translate(fst, value) is not None, value

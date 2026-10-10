@@ -65,6 +65,7 @@ def test_databases_fst():
 
 def test_tools_fst():
     assert translate(TOOLS_FST, "Git") == "GIT"
+    assert translate(TOOLS_FST, "Linux") == "LINUX"
     assert translate(TOOLS_FST, "TCP/IP") == "TCP_IP"
     assert translate(TOOLS_FST, "TCP / IP") == "TCP_IP"
     assert translate(TOOLS_FST, "TCP IP") == "TCP_IP"
@@ -95,6 +96,8 @@ def test_experience_fst():
     assert translate(EXPERIENCE_FST, "2 yrs of experience") == "2"
     assert translate(EXPERIENCE_FST, "10 years experience") == "10"
     assert translate(EXPERIENCE_FST, "3years experience") == "3"
+    assert translate(EXPERIENCE_FST, "4 years of professional experience") == "4"
+    assert translate(EXPERIENCE_FST, "3 YEARS OF EXPERIENCE") == "3"
 
 
 def test_rejected_inputs():
@@ -109,7 +112,14 @@ def test_number_of_states():
     assert len(LANGUAGES_FST.states) == 36
     assert len(FRAMEWORKS_FST.states) == 140
     assert len(DATABASES_FST.states) == 20
-    assert len(TOOLS_FST.states) == 84
+    assert len(TOOLS_FST.states) == 89
     assert len(OTHER_FST.states) == 137
     assert len(ACADEMIC_FST.states) == 107
-    assert len(EXPERIENCE_FST.states) == 4
+    assert len(EXPERIENCE_FST.states) == 37
+
+
+def test_experience_fst_rejects_text_that_is_not_experience():
+    assert translate(EXPERIENCE_FST, "3 bananas") is None
+    assert translate(EXPERIENCE_FST, "3 years of experience.") is None
+    assert translate(EXPERIENCE_FST, "3 of experience") is None
+    assert translate(EXPERIENCE_FST, "No professional experience") is None

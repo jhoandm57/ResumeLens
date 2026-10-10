@@ -50,16 +50,69 @@ def preprocess(text: str) -> str:
 
 
 # -------------------------------------------------------------------
-# Dictionary transducers (prefix tree)
+# Prefix tree
+# -------------------------------------------------------------------
+
+def _add_prefix_tree(
+    fst: FST,
+    root: str,
+    words: dict[str, list[str]],
+    state_name: str,
+) -> None:
+    """
+    Add a prefix tree of words to a transducer, starting at root.
+
+    There is one state for each prefix of the words, so words that
+    start the same way share states. Every character writes ε, and
+    the end marker writes the output associated with the word.
+
+    Args:
+        fst: Transducer being built.
+        root: State where the tree starts.
+        words: Dictionary word -> output written when "#" is read.
+        state_name: Prefix used to name the new states.
+    """
+
+    state_of_prefix = {"": root}
+
+    for word, output in words.items():
+        prefix = ""
+
+        for char in word:
+            next_prefix = prefix + char
+
+            if next_prefix not in state_of_prefix:
+                state_of_prefix[next_prefix] = f"{state_name}{len(state_of_prefix)}"
+
+                # Reading a normal character writes ε.
+                fst.add_transition(
+                    state_of_prefix[prefix],
+                    char,
+                    state_of_prefix[next_prefix],
+                    []
+                )
+
+            prefix = next_prefix
+
+        # Reading the end marker writes the output of the word.
+        fst.add_transition(
+            state_of_prefix[prefix],
+            END_MARKER,
+            FINAL_STATE,
+            output
+        )
+
+
+# -------------------------------------------------------------------
+# Dictionary transducers
 # -------------------------------------------------------------------
 
 def build_dictionary_fst(vocabulary: dict[str, str]) -> FST:
     """
     Build a prefix-tree transducer from a vocabulary table.
 
-    There is one state for each prefix of the variants, so variants
-    that start the same way share states. Every character produces ε,
-    and the end marker produces the canonical token.
+    Every character produces ε, and the end marker produces
+    the canonical token of the variant.
 
     Args:
         vocabulary: Dictionary variant -> canonical token.
@@ -72,34 +125,8 @@ def build_dictionary_fst(vocabulary: dict[str, str]) -> FST:
     fst.add_start_state(INITIAL_STATE)
     fst.add_final_state(FINAL_STATE)
 
-    state_of_prefix = {"": INITIAL_STATE}
-
-    for variant, token in vocabulary.items():
-        prefix = ""
-
-        for char in variant:
-            next_prefix = prefix + char
-
-            if next_prefix not in state_of_prefix:
-                state_of_prefix[next_prefix] = f"q{len(state_of_prefix)}"
-
-                # Reading a normal character writes ε.
-                fst.add_transition(
-                    state_of_prefix[prefix],
-                    char,
-                    state_of_prefix[next_prefix],
-                    []
-                )
-
-            prefix = next_prefix
-
-        # Reading the end marker writes the canonical token.
-        fst.add_transition(
-            state_of_prefix[prefix],
-            END_MARKER,
-            FINAL_STATE,
-            [token]
-        )
+    words = {variant: [token] for variant, token in vocabulary.items()}
+    _add_prefix_tree(fst, INITIAL_STATE, words, "q")
 
     return fst
 
@@ -109,41 +136,99 @@ def build_dictionary_fst(vocabulary: dict[str, str]) -> FST:
 # -------------------------------------------------------------------
 
 DIGITS = string.digits
-EXPERIENCE_OTHER_SYMBOLS = string.ascii_lowercase + "+ "
+
+
+def _add_word(
+    fst: FST,
+    sources: list[str],
+    word: str,
+    target: str,
+    state_name: str,
+) -> None:
+    """
+    Add a chain of states that reads a word and writes ε.
+
+    The chain starts at every state of sources (they all share the
+    same chain) and ends at target.
+
+    Example:
+        _add_word(fst, ["b1", "b2"], "of", "of", "o")
+        b1 --o/ε--> o1 --f/ε--> of
+        b2 --o/ε--> o1
+    """
+
+    first = target if len(word) == 1 else f"{state_name}1"
+
+    for source in sources:
+        fst.add_transition(source, word[0], first, [])
+
+    previous = first
+
+    for position, char in enumerate(word[1:], start=2):
+        following = target if position == len(word) else f"{state_name}{position}"
+        fst.add_transition(previous, char, following, [])
+        previous = following
 
 
 def build_experience_fst() -> FST:
     """
     Build the transducer M_EXP.
 
-    It copies the digits of the number of years and erases
-    the rest of the expression.
+    It copies the digits of the number of years and erases the rest
+    of the expression. The rest must have the same structure accepted
+    by EXPERIENCE_PATTERN in the extraction stage (after preprocessing):
 
-        Q = { q0, q1, q2, qf }
-        q0 --d/d--> q1      q1 --d/d--> q1
-        q1 --c/ε--> q2      q2 --c/ε--> q2
-        q2 --d/ε--> q2      q2 --#/ε--> qf
+        digits (+)? (space)? (year | years | yr | yrs) ( of)? ( professional)? experience
 
-    where d is a digit and c is a non-digit symbol.
+    so inputs such as "3 bananas" are rejected.
+
+    States (37):
+        q0, q1            start / reading the number (copies digits)
+        plus, sp          optional "+" and optional space
+        y1, y2, y3        "y", "ye", "yea"
+        unit, units       "year" or "yr" / "years" or "yrs"
+        b1                space after the unit
+        o1, of, b2        "of" and the space after it
+        p1..p11, prof, b3 "professional" and the space after it
+        x1..x9, exp       "experience"
+        qf                accepting state (reached with "#")
 
     Example:
-        "5+ yrs experience#" -> "5"
+        "5+ yrs of experience#" -> "5"
     """
 
     fst = FST()
     fst.add_start_state("q0")
     fst.add_final_state(FINAL_STATE)
 
+    # Number of years: the digits are copied to the output.
     for digit in DIGITS:
         fst.add_transition("q0", digit, "q1", [digit])
         fst.add_transition("q1", digit, "q1", [digit])
-        fst.add_transition("q2", digit, "q2", [])
 
-    for symbol in EXPERIENCE_OTHER_SYMBOLS:
-        fst.add_transition("q1", symbol, "q2", [])
-        fst.add_transition("q2", symbol, "q2", [])
+    # Optional "+" and optional space.
+    fst.add_transition("q1", "+", "plus", [])
+    fst.add_transition("q1", " ", "sp", [])
+    fst.add_transition("plus", " ", "sp", [])
 
-    fst.add_transition("q2", END_MARKER, FINAL_STATE, [])
+    # year | years | yr | yrs
+    _add_word(fst, ["q1", "plus", "sp"], "year", "unit", "y")
+    fst.add_transition("y1", "r", "unit", [])
+    fst.add_transition("unit", "s", "units", [])
+    fst.add_transition("unit", " ", "b1", [])
+    fst.add_transition("units", " ", "b1", [])
+
+    # Optional " of"
+    _add_word(fst, ["b1"], "of", "of", "o")
+    fst.add_transition("of", " ", "b2", [])
+
+    # Optional " professional"
+    _add_word(fst, ["b1", "b2"], "professional", "prof", "p")
+    fst.add_transition("prof", " ", "b3", [])
+
+    # "experience" and the end marker
+    _add_word(fst, ["b1", "b2", "b3"], "experience", "exp", "x")
+    fst.add_transition("exp", END_MARKER, FINAL_STATE, [])
 
     return fst
 

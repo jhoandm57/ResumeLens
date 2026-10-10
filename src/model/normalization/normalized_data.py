@@ -12,6 +12,13 @@ class NormalizedData:
     transducers and the sorted sequence of each profile.
     """
 
+    # Contact information is not normalized. It is copied from
+    # ExtractedData so that the next stages (candidate profile)
+    # receive all the candidate information in one object.
+    emails: list[str] = field(default_factory=list)
+
+    phones: list[str] = field(default_factory=list)
+
     programming_languages: list[str] = field(default_factory=list)
 
     frameworks_libraries: list[str] = field(default_factory=list)
@@ -26,8 +33,11 @@ class NormalizedData:
 
     experience_years: int | None = None
 
-    # All technical qualification tokens without duplicates,
-    # in the order in which they were found.
+    # All technical qualification tokens without duplicates.
+    # They are grouped by category (languages, frameworks, databases,
+    # tools, other) and, inside each category, follow the order of
+    # the résumé. The recognition stage does not use this order:
+    # it uses profile_sequences.
     qualifications: list[str] = field(default_factory=list)
 
     # One sorted sequence per profile (input of the automata).

@@ -144,3 +144,70 @@ def test_other_qualifications_pattern():
         "Vulnerability Assessment",
         "Cybersecurity",
     ]
+
+
+def test_phone_pattern_formats():
+    text = "+57 300 1234567, 300 123 4567, +57-300-1234567 and (300) 123-4567"
+
+    result = find_matches(PHONE_PATTERN, text)
+
+    assert result == [
+        "+57 300 1234567",
+        "300 123 4567",
+        "+57-300-1234567",
+        "(300) 123-4567",
+    ]
+
+
+def test_phone_pattern_ignores_years_and_ids():
+    text = "Worked 2001-2004. ID 1234567890. Born 2001-10-09."
+
+    result = find_matches(PHONE_PATTERN, text)
+
+    assert result == []
+
+
+def test_sklearn_is_extracted():
+    text = "Python, sklearn and Pandas"
+
+    result = find_matches(FRAMEWORKS_LIBRARIES_PATTERN, text)
+
+    assert result == ["sklearn", "Pandas"]
+
+
+def test_academic_pattern_ignores_words_containing_degrees():
+    text = "Webmaster and Headmaster"
+
+    result = find_matches(ACADEMIC_QUALIFICATIONS_PATTERN, text)
+
+    assert result == []
+
+
+def test_experience_pattern_with_professional():
+    text = "4 years of professional experience and 5+ yrs experience"
+
+    result = find_matches(EXPERIENCE_PATTERN, text)
+
+    assert result == [
+        "4 years of professional experience",
+        "5+ yrs experience",
+    ]
+
+
+def test_experience_pattern_ignores_partial_numbers():
+    text = (
+        "1.5 years of experience, 10-15 years of experience "
+        "and 10 - 15 years of experience"
+    )
+
+    result = find_matches(EXPERIENCE_PATTERN, text)
+
+    assert result == []
+
+
+def test_linux_is_extracted():
+    text = "Python, Linux and Docker"
+
+    result = find_matches(TOOLS_TECHNOLOGIES_PATTERN, text)
+
+    assert result == ["Linux", "Docker"]
