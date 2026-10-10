@@ -396,3 +396,204 @@ Result:   REJECTED  (q0 ∉ F)
 Missing mandatory groups: Frontend language, Frontend framework, Backend, Database, Version control
 ```
 
+
+### 6.2 Machine Learning Engineer — `A_ML`
+
+#### Profile pattern
+
+| Group | Tokens | Requirement | States |
+| :--- | :--- | :---: | :--- |
+| G1 Language | `PYTHON` | Mandatory | `q1` |
+| G2 Data libraries | `PANDAS`, `NUMPY` | Mandatory | `q2`, `q3` |
+| G3 ML libraries | `SCIKIT_LEARN`, `TENSORFLOW`, `PYTORCH` | Mandatory | `q4`, `q5`, `q6` |
+| G4 ML development | `MACHINE_LEARNING`, `ML_MODEL_DEVELOPMENT` | Optional | `q7`, `q8` |
+| G5 Database | `SQL`, `POSTGRESQL` | Mandatory | `q9`, `q10` |
+| G6 Version control | `GIT` | Mandatory | `q11` |
+
+**Pattern represented.** A Machine Learning Engineer combines programming, data processing and machine-learning libraries. The automaton accepts a sequence only if it contains, in this order: `PYTHON`, at least one data library (`PANDAS` or `NUMPY`), at least one machine-learning library (`SCIKIT_LEARN`, `TENSORFLOW` or `PYTORCH`), optionally an explicit machine-learning qualification (`MACHINE_LEARNING` or `ML_MODEL_DEVELOPMENT`), at least one database (`SQL` or `POSTGRESQL`), and `GIT`.
+
+**Alphabet of ML skills.** `Σ(A_ML)` contains the 11 canonical tokens of the profile. The tokens of the ML development group come from phrases (for example `Machine-learning model development`) normalized by `M_OTHER`; the other tokens come from `M_LANG`, `M_FW`, `M_DB` and `M_TOOLS`. Tokens of other profiles (for example `REACT`) are not in `Σ(A_ML)`: they are removed by `sort_for_profile` before the automaton runs.
+
+The ML development group is optional because it is usually described with free text (for example *developing predictive models*, as in the résumé of Mary Jane Watson) that is not a fixed qualification; the use of an ML library is already a mandatory evidence of the profile. This decision makes the example of the project statement (`PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT`) accepted.
+
+In terms of Section 4:
+
+```text
+L(A_ML) = S(G1) S(G2) S(G3) (S(G4) ∪ {ε}) S(G5) S(G6)
+```
+
+#### Formal definition
+
+```text
+A_ML = (Q, Σ, δ, q0, F)
+
+Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11 }
+     |Q| = 12
+Σ  = { PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, PYTORCH, MACHINE_LEARNING, ML_MODEL_DEVELOPMENT, SQL, POSTGRESQL, GIT }
+     |Σ| = 11
+q0 = q0
+F  = { q11 }
+δ  : Q × Σ → Q  (partial function, 33 transitions;
+     the missing pairs go to the trap state)
+```
+
+#### States
+
+| State | Meaning (last token read) | Group | Accepting |
+| :--- | :--- | :--- | :---: |
+| `q0` | nothing has been read | — | no |
+| `q1` | `PYTHON` | G1 Language (M) | no |
+| `q2` | `PANDAS` | G2 Data libraries (M) | no |
+| `q3` | `NUMPY` | G2 Data libraries (M) | no |
+| `q4` | `SCIKIT_LEARN` | G3 ML libraries (M) | no |
+| `q5` | `TENSORFLOW` | G3 ML libraries (M) | no |
+| `q6` | `PYTORCH` | G3 ML libraries (M) | no |
+| `q7` | `MACHINE_LEARNING` | G4 ML development (O) | no |
+| `q8` | `ML_MODEL_DEVELOPMENT` | G4 ML development (O) | no |
+| `q9` | `SQL` | G5 Database (M) | no |
+| `q10` | `POSTGRESQL` | G5 Database (M) | no |
+| `q11` | `GIT` | G6 Version control (M) | yes |
+
+#### Transition function δ
+
+| From | Input | To |
+| :--- | :--- | :--- |
+| `q0` | `PYTHON` | `q1` |
+| `q1` | `PANDAS` | `q2` |
+| `q1` | `NUMPY` | `q3` |
+| `q2` | `NUMPY` | `q3` |
+| `q2` | `SCIKIT_LEARN` | `q4` |
+| `q2` | `TENSORFLOW` | `q5` |
+| `q2` | `PYTORCH` | `q6` |
+| `q3` | `SCIKIT_LEARN` | `q4` |
+| `q3` | `TENSORFLOW` | `q5` |
+| `q3` | `PYTORCH` | `q6` |
+| `q4` | `TENSORFLOW` | `q5` |
+| `q4` | `PYTORCH` | `q6` |
+| `q4` | `MACHINE_LEARNING` | `q7` |
+| `q4` | `ML_MODEL_DEVELOPMENT` | `q8` |
+| `q4` | `SQL` | `q9` |
+| `q4` | `POSTGRESQL` | `q10` |
+| `q5` | `PYTORCH` | `q6` |
+| `q5` | `MACHINE_LEARNING` | `q7` |
+| `q5` | `ML_MODEL_DEVELOPMENT` | `q8` |
+| `q5` | `SQL` | `q9` |
+| `q5` | `POSTGRESQL` | `q10` |
+| `q6` | `MACHINE_LEARNING` | `q7` |
+| `q6` | `ML_MODEL_DEVELOPMENT` | `q8` |
+| `q6` | `SQL` | `q9` |
+| `q6` | `POSTGRESQL` | `q10` |
+| `q7` | `ML_MODEL_DEVELOPMENT` | `q8` |
+| `q7` | `SQL` | `q9` |
+| `q7` | `POSTGRESQL` | `q10` |
+| `q8` | `SQL` | `q9` |
+| `q8` | `POSTGRESQL` | `q10` |
+| `q9` | `POSTGRESQL` | `q10` |
+| `q9` | `GIT` | `q11` |
+| `q10` | `GIT` | `q11` |
+
+#### Transition matrix
+
+Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
+
+| δ | `PYTHON` | `PANDAS` | `NUMPY` | `SCIKIT_LEARN` | `TENSORFLOW` | `PYTORCH` | `MACHINE_LEARNING` | `ML_MODEL_DEVELOPMENT` | `SQL` | `POSTGRESQL` | `GIT` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| →`q0` | q1 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q1` | ∅ | q2 | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q2` | ∅ | ∅ | q3 | q4 | q5 | q6 | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q3` | ∅ | ∅ | ∅ | q4 | q5 | q6 | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | q8 | q9 | q10 | ∅ |
+| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | q9 | q10 | ∅ |
+| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | ∅ |
+| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | ∅ |
+| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | ∅ |
+| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 |
+| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 |
+| *`q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+
+#### Regular expression of the recognized language
+
+```text
+L(A_ML) = PYTHON
+    (PANDAS NUMPY? | NUMPY)
+    (SCIKIT_LEARN TENSORFLOW? PYTORCH? | TENSORFLOW PYTORCH? | PYTORCH)
+    ((MACHINE_LEARNING ML_MODEL_DEVELOPMENT? | ML_MODEL_DEVELOPMENT))?
+    (SQL POSTGRESQL? | POSTGRESQL)
+    GIT
+```
+
+#### Type of automaton
+
+`A_ML` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 12 states and 33 transitions, and it is minimal (`minimize()` keeps 12 states).
+
+#### Transition diagram
+
+Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_ml.svg` (source `diagrams/dfa/a_ml.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+
+![A_ML](../diagrams/dfa/a_ml.svg)
+
+Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
+
+```mermaid
+flowchart LR
+    start([start]) --> q0
+    G1["G1 Language<br/>PYTHON"]
+    G2["G2 Data libraries<br/>PANDAS / NUMPY"]
+    G3["G3 ML libraries<br/>SCIKIT_LEARN / TENSORFLOW / PYTORCH"]
+    G4{{"G4 ML development<br/>MACHINE_LEARNING / ML_MODEL_DEVELOPMENT<br/>(optional)"}}
+    G5["G5 Database<br/>SQL / POSTGRESQL"]
+    G6["G6 Version control<br/>GIT"]
+    q0 --> G1
+    G1 --> G2
+    G2 --> G3
+    G3 --> G4
+    G4 --> G5
+    G5 --> G6
+    G3 -.-> G5
+    G6 --> accept(((ACCEPTED)))
+```
+
+#### Examples
+
+**Accepted — example of Stage 3 of the statement**
+
+```text
+Sequence: PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT
+Run:      q0 --PYTHON--> q1 --PANDAS--> q2 --TENSORFLOW--> q5 --POSTGRESQL--> q10 --GIT--> q11
+Result:   ACCEPTED  (q11 ∈ F)
+```
+
+**Accepted — résumé of Mary Jane Watson**
+
+```text
+Sequence: PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, SQL, GIT
+Run:      q0 --PYTHON--> q1 --PANDAS--> q2 --NUMPY--> q3 --SCIKIT_LEARN--> q4 --TENSORFLOW--> q5 --SQL--> q9 --GIT--> q11
+Result:   ACCEPTED  (q11 ∈ F)
+```
+
+**Accepted — the optional group ML development is present**
+
+```text
+Sequence: PYTHON, NUMPY, PYTORCH, ML_MODEL_DEVELOPMENT, SQL, GIT
+Run:      q0 --PYTHON--> q1 --NUMPY--> q3 --PYTORCH--> q6 --ML_MODEL_DEVELOPMENT--> q8 --SQL--> q9 --GIT--> q11
+Result:   ACCEPTED  (q11 ∈ F)
+```
+
+**Rejected — no machine-learning library**
+
+```text
+Sequence: PYTHON, PANDAS, NUMPY, SQL, GIT
+Run:      q0 --PYTHON--> q1 --PANDAS--> q2 --NUMPY--> q3 --SQL--> q_trap
+Result:   REJECTED  (δ(q3, SQL) is not defined → q_trap)
+Missing mandatory groups: ML libraries
+```
+
+**Rejected — PYTHON is missing**
+
+```text
+Sequence: PANDAS, SCIKIT_LEARN, SQL, GIT
+Run:      q0 --PANDAS--> q_trap
+Result:   REJECTED  (δ(q0, PANDAS) is not defined → q_trap)
+Missing mandatory groups: Language
+```
+
