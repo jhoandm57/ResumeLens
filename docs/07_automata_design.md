@@ -1018,3 +1018,87 @@ Accepted profiles: MACHINE_LEARNING_ENGINEER, CYBERSECURITY_ENGINEER, DATA_ENGIN
 ```
 
 The Full Stack automaton rejects in the first step: `SQL` belongs to group G5, and from `q0` the groups G1, G2 and G3 (mandatory) cannot be skipped.
+
+---
+
+## 8. Implementation Guide
+
+### 8.1 File structure
+
+```text
+src/model/classification/
+    __init__.py
+    profile_patterns.py        groups of each profile + mandatory/optional (data only)
+    automata_builder.py        construction of the DFAs with pyformlang (Section 5)
+    classification_result.py   ProfileDecision and ClassificationResult
+    resume_classifier.py       runs the four automata on a NormalizedData
+src/model/pipeline.py          regex -> FST -> DFA for a complete résumé
+src/visualization/dfa_export.py
+                               diagrams (diagrams/dfa/*.dot, *.svg) and formal tables
+```
+
+### 8.2 `profile_patterns.py`
+
+The tokens of every group are **not** written again: they are taken from `PROFILE_GROUPS` of `profile_order.py`, so the order used to sort the sequence and the order recognized by the automaton come from the same definition. This module only adds the name of each group and whether it is mandatory:
+
+```python
+FULL_STACK_REQUIREMENTS = [
+    ("Frontend language", MANDATORY),
+    ("Frontend framework", MANDATORY),
+    ("Backend", MANDATORY),
+    ("API", OPTIONAL),
+    ("Database", MANDATORY),
+    ("Version control", MANDATORY),
+]
+```
+
+To change the pattern of a profile, it is enough to change one of these flags; the automaton, its diagram and its tables are generated again from it.
+
+### 8.3 `automata_builder.py`
+
+`build_profile_dfa(groups)` implements the construction of Section 5 with `pyformlang.finite_automaton.DeterministicFiniteAutomaton`:
+
+```python
+dfa.add_start_state(State("q0"))
+
+for i, s_from in enumerate(states):
+    for j in range(i + 1, len(states)):
+        if _only_optional(groups, g(s_from) + 1, g(s_to) - 1):
+            dfa.add_transition(State(s_from), Symbol(t_j), State(s_to))
+
+for state in states:
+    if _only_optional(groups, g(state) + 1, len(groups)):
+        dfa.add_final_state(State(state))
+```
+
+The class `ResumeLensDFA` extends the pyformlang DFA only to keep the list of transitions, the token and the group of each state (used by the documentation and to show the run step by step). The recognition is done by `pyformlang` (`dfa.accepts(...)`) without any change.
+
+### 8.4 `resume_classifier.py`
+
+The four automata are built once, when the module is imported (`PROFILE_DFAS`). `classify_resume(normalized)` runs, for every profile, the automaton on `normalized.profile_sequences[profile]` and returns a `ClassificationResult`:
+
+```python
+result = classify_resume(normalized)
+
+result.result_of("FULL_STACK_DEVELOPER")   # "ACCEPTED"
+result.accepted_profiles                   # ["FULL_STACK_DEVELOPER"]
+result.decisions["FULL_STACK_DEVELOPER"].trace
+# [("q0", "JAVASCRIPT", "q1"), ("q1", "REACT", "q3"), ...]
+```
+
+`ClassificationResult` also keeps the `NormalizedData`, so stage 4 (candidate-profile DSL) receives the candidate information and the result of each profile in one object.
+
+### 8.5 Running the pipeline and generating the diagrams
+
+```bash
+# Stages 1-3 on a résumé in a text file
+python -m src.model.pipeline path/to/resume.txt
+
+# Diagrams diagrams/dfa/a_fs.dot/.svg, a_ml, a_sec, a_de
+python -m src.visualization.dfa_export
+
+# Formal tables of one automaton (Markdown, as in Section 6)
+python -m src.visualization.dfa_export --markdown A_FS
+```
+
+The `.svg` files are generated only if the Graphviz program `dot` is installed.
