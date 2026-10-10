@@ -1,0 +1,98 @@
+digraph A_FS {
+    rankdir=LR;
+    nodesep=0.5;
+    ranksep=1.4;
+    splines=true;
+    node [shape=circle, fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=9];
+    start [shape=point];
+    start -> q0;
+    subgraph cluster_g1 {
+        label="G1: Frontend language (mandatory)";
+        fontname="Helvetica"; fontsize=10;
+        style=solid; color=gray50;
+        q1 [shape=circle];
+        q2 [shape=circle];
+    }
+    subgraph cluster_g2 {
+        label="G2: Frontend framework (mandatory)";
+        fontname="Helvetica"; fontsize=10;
+        style=solid; color=gray50;
+        q3 [shape=circle];
+        q4 [shape=circle];
+        q5 [shape=circle];
+    }
+    subgraph cluster_g3 {
+        label="G3: Backend (mandatory)";
+        fontname="Helvetica"; fontsize=10;
+        style=solid; color=gray50;
+        q6 [shape=circle];
+        q7 [shape=circle];
+        q8 [shape=circle];
+    }
+    subgraph cluster_g4 {
+        label="G4: API (optional)";
+        fontname="Helvetica"; fontsize=10;
+        style=dashed; color=gray50;
+        q9 [shape=circle];
+    }
+    subgraph cluster_g5 {
+        label="G5: Database (mandatory)";
+        fontname="Helvetica"; fontsize=10;
+        style=solid; color=gray50;
+        q10 [shape=circle];
+        q11 [shape=circle];
+        q12 [shape=circle];
+    }
+    subgraph cluster_g6 {
+        label="G6: Version control (mandatory)";
+        fontname="Helvetica"; fontsize=10;
+        style=solid; color=gray50;
+        q13 [shape=doublecircle];
+    }
+    q0 -> q1 [label="JAVASCRIPT"];
+    q0 -> q2 [label="TYPESCRIPT"];
+    q1 -> q2 [label="TYPESCRIPT"];
+    q1 -> q3 [label="REACT"];
+    q1 -> q4 [label="ANGULAR"];
+    q1 -> q5 [label="VUE"];
+    q2 -> q3 [label="REACT"];
+    q2 -> q4 [label="ANGULAR"];
+    q2 -> q5 [label="VUE"];
+    q3 -> q4 [label="ANGULAR"];
+    q3 -> q5 [label="VUE"];
+    q3 -> q6 [label="NODE_JS"];
+    q3 -> q7 [label="DJANGO"];
+    q3 -> q8 [label="SPRING_BOOT"];
+    q4 -> q5 [label="VUE"];
+    q4 -> q6 [label="NODE_JS"];
+    q4 -> q7 [label="DJANGO"];
+    q4 -> q8 [label="SPRING_BOOT"];
+    q5 -> q6 [label="NODE_JS"];
+    q5 -> q7 [label="DJANGO"];
+    q5 -> q8 [label="SPRING_BOOT"];
+    q6 -> q7 [label="DJANGO"];
+    q6 -> q8 [label="SPRING_BOOT"];
+    q6 -> q9 [label="REST_API"];
+    q6 -> q10 [label="SQL"];
+    q6 -> q11 [label="POSTGRESQL"];
+    q6 -> q12 [label="NOSQL"];
+    q7 -> q8 [label="SPRING_BOOT"];
+    q7 -> q9 [label="REST_API"];
+    q7 -> q10 [label="SQL"];
+    q7 -> q11 [label="POSTGRESQL"];
+    q7 -> q12 [label="NOSQL"];
+    q8 -> q9 [label="REST_API"];
+    q8 -> q10 [label="SQL"];
+    q8 -> q11 [label="POSTGRESQL"];
+    q8 -> q12 [label="NOSQL"];
+    q9 -> q10 [label="SQL"];
+    q9 -> q11 [label="POSTGRESQL"];
+    q9 -> q12 [label="NOSQL"];
+    q10 -> q11 [label="POSTGRESQL"];
+    q10 -> q12 [label="NOSQL"];
+    q10 -> q13 [label="GIT"];
+    q11 -> q12 [label="NOSQL"];
+    q11 -> q13 [label="GIT"];
+    q12 -> q13 [label="GIT"];
+}
