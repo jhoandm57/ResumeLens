@@ -597,3 +597,424 @@ Result:   REJECTED  (δ(q0, PANDAS) is not defined → q_trap)
 Missing mandatory groups: Language
 ```
 
+
+### 6.3 Cybersecurity Engineer — `A_SEC`
+
+#### Profile pattern
+
+| Group | Tokens | Requirement | States |
+| :--- | :--- | :---: | :--- |
+| G1 Scripting | `PYTHON`, `BASH` | Mandatory | `q1`, `q2` |
+| G2 Operating system | `LINUX` | Mandatory | `q3` |
+| G3 Networking | `NETWORKING`, `TCP_IP` | Mandatory | `q4`, `q5` |
+| G4 Security | `CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT`, `SECURITY_AUTOMATION` | Mandatory | `q6`, `q7`, `q8`, `q9` |
+| G5 Containers | `DOCKER`, `KUBERNETES` | Optional | `q10`, `q11` |
+| G6 Version control | `GIT` | Mandatory | `q12` |
+
+**Pattern represented.** A Cybersecurity Engineer protects systems and networks, so the automaton accepts a sequence only if it contains, in this order: at least one scripting language (`PYTHON` or `BASH`), `LINUX`, at least one networking qualification (`NETWORKING` or `TCP_IP`), at least one security qualification (`CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT` or `SECURITY_AUTOMATION`), optionally a container technology (`DOCKER` or `KUBERNETES`), and `GIT`.
+
+The Containers group is optional because containers are useful for security automation and infrastructure, but they do not identify the profile; the Security group is the one that distinguishes this profile from the others and it is mandatory.
+
+In terms of Section 4:
+
+```text
+L(A_SEC) = S(G1) S(G2) S(G3) S(G4) (S(G5) ∪ {ε}) S(G6)
+```
+
+#### Formal definition
+
+```text
+A_SEC = (Q, Σ, δ, q0, F)
+
+Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12 }
+     |Q| = 13
+Σ  = { PYTHON, BASH, LINUX, NETWORKING, TCP_IP, CYBERSECURITY, NMAP, VULNERABILITY_ASSESSMENT, SECURITY_AUTOMATION, DOCKER, KUBERNETES, GIT }
+     |Σ| = 12
+q0 = q0
+F  = { q12 }
+δ  : Q × Σ → Q  (partial function, 37 transitions;
+     the missing pairs go to the trap state)
+```
+
+#### States
+
+| State | Meaning (last token read) | Group | Accepting |
+| :--- | :--- | :--- | :---: |
+| `q0` | nothing has been read | — | no |
+| `q1` | `PYTHON` | G1 Scripting (M) | no |
+| `q2` | `BASH` | G1 Scripting (M) | no |
+| `q3` | `LINUX` | G2 Operating system (M) | no |
+| `q4` | `NETWORKING` | G3 Networking (M) | no |
+| `q5` | `TCP_IP` | G3 Networking (M) | no |
+| `q6` | `CYBERSECURITY` | G4 Security (M) | no |
+| `q7` | `NMAP` | G4 Security (M) | no |
+| `q8` | `VULNERABILITY_ASSESSMENT` | G4 Security (M) | no |
+| `q9` | `SECURITY_AUTOMATION` | G4 Security (M) | no |
+| `q10` | `DOCKER` | G5 Containers (O) | no |
+| `q11` | `KUBERNETES` | G5 Containers (O) | no |
+| `q12` | `GIT` | G6 Version control (M) | yes |
+
+#### Transition function δ
+
+| From | Input | To |
+| :--- | :--- | :--- |
+| `q0` | `PYTHON` | `q1` |
+| `q0` | `BASH` | `q2` |
+| `q1` | `BASH` | `q2` |
+| `q1` | `LINUX` | `q3` |
+| `q2` | `LINUX` | `q3` |
+| `q3` | `NETWORKING` | `q4` |
+| `q3` | `TCP_IP` | `q5` |
+| `q4` | `TCP_IP` | `q5` |
+| `q4` | `CYBERSECURITY` | `q6` |
+| `q4` | `NMAP` | `q7` |
+| `q4` | `VULNERABILITY_ASSESSMENT` | `q8` |
+| `q4` | `SECURITY_AUTOMATION` | `q9` |
+| `q5` | `CYBERSECURITY` | `q6` |
+| `q5` | `NMAP` | `q7` |
+| `q5` | `VULNERABILITY_ASSESSMENT` | `q8` |
+| `q5` | `SECURITY_AUTOMATION` | `q9` |
+| `q6` | `NMAP` | `q7` |
+| `q6` | `VULNERABILITY_ASSESSMENT` | `q8` |
+| `q6` | `SECURITY_AUTOMATION` | `q9` |
+| `q6` | `DOCKER` | `q10` |
+| `q6` | `KUBERNETES` | `q11` |
+| `q6` | `GIT` | `q12` |
+| `q7` | `VULNERABILITY_ASSESSMENT` | `q8` |
+| `q7` | `SECURITY_AUTOMATION` | `q9` |
+| `q7` | `DOCKER` | `q10` |
+| `q7` | `KUBERNETES` | `q11` |
+| `q7` | `GIT` | `q12` |
+| `q8` | `SECURITY_AUTOMATION` | `q9` |
+| `q8` | `DOCKER` | `q10` |
+| `q8` | `KUBERNETES` | `q11` |
+| `q8` | `GIT` | `q12` |
+| `q9` | `DOCKER` | `q10` |
+| `q9` | `KUBERNETES` | `q11` |
+| `q9` | `GIT` | `q12` |
+| `q10` | `KUBERNETES` | `q11` |
+| `q10` | `GIT` | `q12` |
+| `q11` | `GIT` | `q12` |
+
+#### Transition matrix
+
+Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
+
+| δ | `PYTHON` | `BASH` | `LINUX` | `NETWORKING` | `TCP_IP` | `CYBERSECURITY` | `NMAP` | `VULNERABILITY_ASSESSMENT` | `SECURITY_AUTOMATION` | `DOCKER` | `KUBERNETES` | `GIT` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| →`q0` | q1 | q2 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q1` | ∅ | q2 | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q2` | ∅ | ∅ | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q3` | ∅ | ∅ | ∅ | q4 | q5 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | q8 | q9 | ∅ | ∅ | ∅ |
+| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | q9 | ∅ | ∅ | ∅ |
+| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | q11 | q12 |
+| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | q11 | q12 |
+| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | q11 | q12 |
+| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 | q12 |
+| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 | q12 |
+| `q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q12 |
+| *`q12` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+
+#### Regular expression of the recognized language
+
+```text
+L(A_SEC) = (PYTHON BASH? | BASH)
+    LINUX
+    (NETWORKING TCP_IP? | TCP_IP)
+    (CYBERSECURITY NMAP? VULNERABILITY_ASSESSMENT? SECURITY_AUTOMATION? | NMAP VULNERABILITY_ASSESSMENT? SECURITY_AUTOMATION? | VULNERABILITY_ASSESSMENT SECURITY_AUTOMATION? | SECURITY_AUTOMATION)
+    ((DOCKER KUBERNETES? | KUBERNETES))?
+    GIT
+```
+
+#### Type of automaton
+
+`A_SEC` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 13 states and 37 transitions, and it is minimal (`minimize()` keeps 13 states).
+
+#### Transition diagram
+
+Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_sec.svg` (source `diagrams/dfa/a_sec.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+
+![A_SEC](../diagrams/dfa/a_sec.svg)
+
+Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
+
+```mermaid
+flowchart LR
+    start([start]) --> q0
+    G1["G1 Scripting<br/>PYTHON / BASH"]
+    G2["G2 Operating system<br/>LINUX"]
+    G3["G3 Networking<br/>NETWORKING / TCP_IP"]
+    G4["G4 Security<br/>CYBERSECURITY / NMAP / VULNERABILITY_ASSESSMENT / SECURITY_AUTOMATION"]
+    G5{{"G5 Containers<br/>DOCKER / KUBERNETES<br/>(optional)"}}
+    G6["G6 Version control<br/>GIT"]
+    q0 --> G1
+    G1 --> G2
+    G2 --> G3
+    G3 --> G4
+    G4 --> G5
+    G5 --> G6
+    G4 -.-> G6
+    G6 --> accept(((ACCEPTED)))
+```
+
+#### Examples
+
+**Accepted — résumé of Peter Parker**
+
+```text
+Sequence: PYTHON, LINUX, TCP_IP, NMAP, DOCKER, GIT
+Run:      q0 --PYTHON--> q1 --LINUX--> q3 --TCP_IP--> q5 --NMAP--> q7 --DOCKER--> q10 --GIT--> q12
+Result:   ACCEPTED  (q12 ∈ F)
+```
+
+**Accepted — without the optional group Containers**
+
+```text
+Sequence: BASH, LINUX, NETWORKING, VULNERABILITY_ASSESSMENT, GIT
+Run:      q0 --BASH--> q2 --LINUX--> q3 --NETWORKING--> q4 --VULNERABILITY_ASSESSMENT--> q8 --GIT--> q12
+Result:   ACCEPTED  (q12 ∈ F)
+```
+
+**Rejected — no networking qualification**
+
+```text
+Sequence: PYTHON, LINUX, NMAP, DOCKER, GIT
+Run:      q0 --PYTHON--> q1 --LINUX--> q3 --NMAP--> q_trap
+Result:   REJECTED  (δ(q3, NMAP) is not defined → q_trap)
+Missing mandatory groups: Networking
+```
+
+**Rejected — no security qualification**
+
+```text
+Sequence: PYTHON, LINUX, TCP_IP, DOCKER, GIT
+Run:      q0 --PYTHON--> q1 --LINUX--> q3 --TCP_IP--> q5 --DOCKER--> q_trap
+Result:   REJECTED  (δ(q5, DOCKER) is not defined → q_trap)
+Missing mandatory groups: Security
+```
+
+### 6.4 Data Engineer — `A_DE`
+
+#### Profile pattern
+
+| Group | Tokens | Requirement | States |
+| :--- | :--- | :---: | :--- |
+| G1 Language | `PYTHON`, `SQL` | Mandatory | `q1`, `q2` |
+| G2 Processing | `SPARK` | Mandatory | `q3` |
+| G3 Orchestration | `AIRFLOW` | Optional | `q4` |
+| G4 Data integration | `ETL`, `ELT`, `DATA_PIPELINE` | Mandatory | `q5`, `q6`, `q7` |
+| G5 Storage | `DATA_WAREHOUSING`, `POSTGRESQL`, `NOSQL` | Mandatory | `q8`, `q9`, `q10` |
+| G6 Version control | `GIT` | Mandatory | `q11` |
+
+**Pattern represented.** A Data Engineer builds and maintains data pipelines. The automaton accepts a sequence only if it contains, in this order: at least one data language (`PYTHON` or `SQL`), `SPARK`, optionally `AIRFLOW`, at least one data-integration qualification (`ETL`, `ELT` or `DATA_PIPELINE`), at least one storage technology (`DATA_WAREHOUSING`, `POSTGRESQL` or `NOSQL`), and `GIT`.
+
+The Orchestration group (`AIRFLOW`) is optional because it is one specific tool and many pipelines are orchestrated with other tools that are not in the vocabulary; the processing engine and the data-integration group are the qualifications that identify the profile.
+
+In terms of Section 4:
+
+```text
+L(A_DE) = S(G1) S(G2) (S(G3) ∪ {ε}) S(G4) S(G5) S(G6)
+```
+
+#### Formal definition
+
+```text
+A_DE = (Q, Σ, δ, q0, F)
+
+Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11 }
+     |Q| = 12
+Σ  = { PYTHON, SQL, SPARK, AIRFLOW, ETL, ELT, DATA_PIPELINE, DATA_WAREHOUSING, POSTGRESQL, NOSQL, GIT }
+     |Σ| = 11
+q0 = q0
+F  = { q11 }
+δ  : Q × Σ → Q  (partial function, 30 transitions;
+     the missing pairs go to the trap state)
+```
+
+#### States
+
+| State | Meaning (last token read) | Group | Accepting |
+| :--- | :--- | :--- | :---: |
+| `q0` | nothing has been read | — | no |
+| `q1` | `PYTHON` | G1 Language (M) | no |
+| `q2` | `SQL` | G1 Language (M) | no |
+| `q3` | `SPARK` | G2 Processing (M) | no |
+| `q4` | `AIRFLOW` | G3 Orchestration (O) | no |
+| `q5` | `ETL` | G4 Data integration (M) | no |
+| `q6` | `ELT` | G4 Data integration (M) | no |
+| `q7` | `DATA_PIPELINE` | G4 Data integration (M) | no |
+| `q8` | `DATA_WAREHOUSING` | G5 Storage (M) | no |
+| `q9` | `POSTGRESQL` | G5 Storage (M) | no |
+| `q10` | `NOSQL` | G5 Storage (M) | no |
+| `q11` | `GIT` | G6 Version control (M) | yes |
+
+#### Transition function δ
+
+| From | Input | To |
+| :--- | :--- | :--- |
+| `q0` | `PYTHON` | `q1` |
+| `q0` | `SQL` | `q2` |
+| `q1` | `SQL` | `q2` |
+| `q1` | `SPARK` | `q3` |
+| `q2` | `SPARK` | `q3` |
+| `q3` | `AIRFLOW` | `q4` |
+| `q3` | `ETL` | `q5` |
+| `q3` | `ELT` | `q6` |
+| `q3` | `DATA_PIPELINE` | `q7` |
+| `q4` | `ETL` | `q5` |
+| `q4` | `ELT` | `q6` |
+| `q4` | `DATA_PIPELINE` | `q7` |
+| `q5` | `ELT` | `q6` |
+| `q5` | `DATA_PIPELINE` | `q7` |
+| `q5` | `DATA_WAREHOUSING` | `q8` |
+| `q5` | `POSTGRESQL` | `q9` |
+| `q5` | `NOSQL` | `q10` |
+| `q6` | `DATA_PIPELINE` | `q7` |
+| `q6` | `DATA_WAREHOUSING` | `q8` |
+| `q6` | `POSTGRESQL` | `q9` |
+| `q6` | `NOSQL` | `q10` |
+| `q7` | `DATA_WAREHOUSING` | `q8` |
+| `q7` | `POSTGRESQL` | `q9` |
+| `q7` | `NOSQL` | `q10` |
+| `q8` | `POSTGRESQL` | `q9` |
+| `q8` | `NOSQL` | `q10` |
+| `q8` | `GIT` | `q11` |
+| `q9` | `NOSQL` | `q10` |
+| `q9` | `GIT` | `q11` |
+| `q10` | `GIT` | `q11` |
+
+#### Transition matrix
+
+Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
+
+| δ | `PYTHON` | `SQL` | `SPARK` | `AIRFLOW` | `ETL` | `ELT` | `DATA_PIPELINE` | `DATA_WAREHOUSING` | `POSTGRESQL` | `NOSQL` | `GIT` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| →`q0` | q1 | q2 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q1` | ∅ | q2 | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q2` | ∅ | ∅ | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+| `q3` | ∅ | ∅ | ∅ | q4 | q5 | q6 | q7 | ∅ | ∅ | ∅ | ∅ |
+| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | ∅ | ∅ | ∅ | ∅ |
+| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | q9 | q10 | ∅ |
+| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | ∅ |
+| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | ∅ |
+| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | q11 |
+| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 |
+| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 |
+| *`q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
+
+#### Regular expression of the recognized language
+
+```text
+L(A_DE) = (PYTHON SQL? | SQL)
+    SPARK
+    (AIRFLOW)?
+    (ETL ELT? DATA_PIPELINE? | ELT DATA_PIPELINE? | DATA_PIPELINE)
+    (DATA_WAREHOUSING POSTGRESQL? NOSQL? | POSTGRESQL NOSQL? | NOSQL)
+    GIT
+```
+
+#### Type of automaton
+
+`A_DE` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 12 states and 30 transitions, and it is minimal (`minimize()` keeps 12 states).
+
+#### Transition diagram
+
+Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_de.svg` (source `diagrams/dfa/a_de.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+
+![A_DE](../diagrams/dfa/a_de.svg)
+
+Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
+
+```mermaid
+flowchart LR
+    start([start]) --> q0
+    G1["G1 Language<br/>PYTHON / SQL"]
+    G2["G2 Processing<br/>SPARK"]
+    G3{{"G3 Orchestration<br/>AIRFLOW<br/>(optional)"}}
+    G4["G4 Data integration<br/>ETL / ELT / DATA_PIPELINE"]
+    G5["G5 Storage<br/>DATA_WAREHOUSING / POSTGRESQL / NOSQL"]
+    G6["G6 Version control<br/>GIT"]
+    q0 --> G1
+    G1 --> G2
+    G2 --> G3
+    G3 --> G4
+    G4 --> G5
+    G5 --> G6
+    G2 -.-> G4
+    G6 --> accept(((ACCEPTED)))
+```
+
+#### Examples
+
+**Accepted — résumé of Clark Kent**
+
+```text
+Sequence: PYTHON, SQL, SPARK, AIRFLOW, ETL, POSTGRESQL, GIT
+Run:      q0 --PYTHON--> q1 --SQL--> q2 --SPARK--> q3 --AIRFLOW--> q4 --ETL--> q5 --POSTGRESQL--> q9 --GIT--> q11
+Result:   ACCEPTED  (q11 ∈ F)
+```
+
+**Accepted — without the optional group Orchestration**
+
+```text
+Sequence: SQL, SPARK, ELT, DATA_PIPELINE, DATA_WAREHOUSING, GIT
+Run:      q0 --SQL--> q2 --SPARK--> q3 --ELT--> q6 --DATA_PIPELINE--> q7 --DATA_WAREHOUSING--> q8 --GIT--> q11
+Result:   ACCEPTED  (q11 ∈ F)
+```
+
+**Rejected — SPARK is missing**
+
+```text
+Sequence: PYTHON, SQL, AIRFLOW, ETL, POSTGRESQL, GIT
+Run:      q0 --PYTHON--> q1 --SQL--> q2 --AIRFLOW--> q_trap
+Result:   REJECTED  (δ(q2, AIRFLOW) is not defined → q_trap)
+Missing mandatory groups: Processing
+```
+
+**Rejected — no storage technology**
+
+```text
+Sequence: PYTHON, SPARK, AIRFLOW, ETL, GIT
+Run:      q0 --PYTHON--> q1 --SPARK--> q3 --AIRFLOW--> q4 --ETL--> q5 --GIT--> q_trap
+Result:   REJECTED  (δ(q5, GIT) is not defined → q_trap)
+Missing mandatory groups: Storage
+```
+
+
+---
+
+## 7. Summary of the Automata
+
+| Automaton | Profile | Type | States (size of Q) | Symbols (size of Σ) | Transitions | Groups M / O | F |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| `A_FS` | FULL_STACK_DEVELOPER | DFA | 14 | 13 | 45 | 5 / 1 | { q13 } |
+| `A_ML` | MACHINE_LEARNING_ENGINEER | DFA | 12 | 11 | 33 | 5 / 1 | { q11 } |
+| `A_SEC` | CYBERSECURITY_ENGINEER | DFA | 13 | 12 | 37 | 5 / 1 | { q12 } |
+| `A_DE` | DATA_ENGINEER | DFA | 12 | 11 | 30 | 5 / 1 | { q11 } |
+
+In the four profiles the last group (`GIT`) is mandatory, so the only accepting state is the state of `GIT`.
+
+### 7.1 Classification of one résumé with the four automata
+
+The same résumé is evaluated by the four automata, each one with its own sorted sequence. A résumé can be accepted by more than one profile:
+
+```text
+Tony Stark
+5 years of experience
+Technical Skills: Python, Bash, SQL, Pandas, NumPy, PyTorch, Spark, ETL,
+                  PostgreSQL, Linux, TCP/IP, Nmap, Docker, Git.
+```
+
+| Automaton | Sequence | Run | Result |
+| :--- | :--- | :--- | :---: |
+| `A_FS` | `SQL, POSTGRESQL, GIT` | `q0 --SQL--> q_trap` | REJECTED |
+| `A_ML` | `PYTHON, PANDAS, NUMPY, PYTORCH, SQL, POSTGRESQL, GIT` | `q0 → q1 → q2 → q3 → q6 → q9 → q10 → q11` | ACCEPTED |
+| `A_SEC` | `PYTHON, BASH, LINUX, TCP_IP, NMAP, DOCKER, GIT` | `q0 → q1 → q2 → q3 → q5 → q7 → q10 → q12` | ACCEPTED |
+| `A_DE` | `PYTHON, SQL, SPARK, ETL, POSTGRESQL, GIT` | `q0 → q1 → q2 → q3 → q5 → q9 → q11` | ACCEPTED |
+
+```text
+Accepted profiles: MACHINE_LEARNING_ENGINEER, CYBERSECURITY_ENGINEER, DATA_ENGINEER
+```
+
+The Full Stack automaton rejects in the first step: `SQL` belongs to group G5, and from `q0` the groups G1, G2 and G3 (mandatory) cannot be skipped.
