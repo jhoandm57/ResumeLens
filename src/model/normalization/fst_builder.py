@@ -28,6 +28,31 @@ FINAL_STATE = "qf"
 
 
 # -------------------------------------------------------------------
+# Transducer class
+# -------------------------------------------------------------------
+
+class ResumeLensFST(FST):
+    """
+    pyformlang FST that also keeps the list of its transitions in the
+    order they were added.
+
+    The list is used only to document the transducers (complete δ/ω
+    tables and diagrams, see src/visualization/fst_export.py), so the
+    documentation is generated from the same object used to translate.
+    Translation is done by pyformlang without any change.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.transition_list: list[tuple[str, str, str, list[str]]] = []
+
+    def add_transition(self, s_from, input_symbol, s_to, output_symbols):
+        output_symbols = list(output_symbols)
+        super().add_transition(s_from, input_symbol, s_to, output_symbols)
+        self.transition_list.append((s_from, input_symbol, s_to, output_symbols))
+
+
+# -------------------------------------------------------------------
 # Preprocessing
 # -------------------------------------------------------------------
 
@@ -107,7 +132,7 @@ def _add_prefix_tree(
 # Dictionary transducers
 # -------------------------------------------------------------------
 
-def build_dictionary_fst(vocabulary: dict[str, str]) -> FST:
+def build_dictionary_fst(vocabulary: dict[str, str]) -> ResumeLensFST:
     """
     Build a prefix-tree transducer from a vocabulary table.
 
@@ -121,7 +146,7 @@ def build_dictionary_fst(vocabulary: dict[str, str]) -> FST:
         Deterministic finite-state transducer.
     """
 
-    fst = FST()
+    fst = ResumeLensFST()
     fst.add_start_state(INITIAL_STATE)
     fst.add_final_state(FINAL_STATE)
 
@@ -170,7 +195,7 @@ def _add_word(
         previous = following
 
 
-def build_experience_fst() -> FST:
+def build_experience_fst() -> ResumeLensFST:
     """
     Build the transducer M_EXP.
 
@@ -197,7 +222,7 @@ def build_experience_fst() -> FST:
         "5+ yrs of experience#" -> "5"
     """
 
-    fst = FST()
+    fst = ResumeLensFST()
     fst.add_start_state("q0")
     fst.add_final_state(FINAL_STATE)
 

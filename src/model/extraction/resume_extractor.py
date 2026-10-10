@@ -12,6 +12,8 @@ in later stages.
 import re
 
 from .regex_patterns import (
+    NAME_LABEL_PATTERN,
+    NAME_HEADER_PATTERN,
     EMAIL_PATTERN,
     PHONE_PATTERN,
     PROGRAMMING_LANGUAGES_PATTERN,
@@ -46,6 +48,37 @@ def _find_matches(pattern: str, text: str) -> list[str]:
         text,
         flags=re.IGNORECASE
     )
+
+
+def extract_name(text: str) -> str | None:
+    """
+    Extract the name of the candidate.
+
+    Two forms are tried, in this order:
+    1. An explicit label, in any line:   "Name: Wednesday Addams"
+    2. The name alone in the first non-empty line of the résumé.
+
+    This search is NOT case-insensitive: capital letters are what
+    distinguish a proper name from the rest of the text.
+
+    Args:
+        text: Résumé text.
+
+    Returns:
+        The name, with single spaces between its words,
+        or None if no name was found.
+    """
+
+    match = (
+        re.search(NAME_LABEL_PATTERN, text, flags=re.MULTILINE)
+        or re.search(NAME_HEADER_PATTERN, text, flags=re.MULTILINE)
+    )
+
+    if match is None:
+        return None
+
+    # "Mary   Jane  Watson" -> "Mary Jane Watson"
+    return " ".join(match.group(1).split())
 
 
 def extract_contact_information(text: str) -> tuple[list[str], list[str]]:
@@ -160,6 +193,7 @@ def extract_resume_information(text: str) -> ExtractedData:
     emails, phones = extract_contact_information(text)
 
     return ExtractedData(
+        name=extract_name(text),
         emails=emails,
         phones=phones,
         programming_languages=extract_programming_languages(text),

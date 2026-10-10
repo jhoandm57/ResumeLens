@@ -12,6 +12,11 @@ class ExtractedData:
     during the regular-expression stage.
     """
 
+    # Name of the candidate, or None if it was not found.
+    # It is a single value (not a list) because a résumé
+    # belongs to only one candidate.
+    name: str | None = None
+
     emails: list[str] = field(default_factory=list)
 
     phones: list[str] = field(default_factory=list)

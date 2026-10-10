@@ -12,9 +12,11 @@ class NormalizedData:
     transducers and the sorted sequence of each profile.
     """
 
-    # Contact information is not normalized. It is copied from
+    # The name and the contact information are not normalized. It is copied from
     # ExtractedData so that the next stages (candidate profile)
     # receive all the candidate information in one object.
+    name: str | None = None
+
     emails: list[str] = field(default_factory=list)
 
     phones: list[str] = field(default_factory=list)

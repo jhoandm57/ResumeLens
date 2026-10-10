@@ -48,6 +48,7 @@ def test_extract_resume_information_extracts_all_categories():
 def test_empty_resume_returns_empty_lists():
     result = extract_resume_information("")
 
+    assert result.name is None
     assert result.emails == []
     assert result.phones == []
     assert result.programming_languages == []
@@ -57,3 +58,30 @@ def test_empty_resume_returns_empty_lists():
     assert result.professional_experience == []
     assert result.tools_technologies == []
     assert result.other_qualifications == []
+
+def test_extract_name_from_header():
+    resume = """
+    Wednesday Addams
+    3 years of experience developing web applications.
+    Technical Skills:
+    JS, React.js, NodeJS, Postgres, Git.
+    """
+
+    result = extract_resume_information(resume)
+
+    assert result.name == "Wednesday Addams"
+
+
+def test_label_has_priority_over_header():
+    resume = "Curriculum Vitae\nName: Mary   Jane Watson\nPython, SQL"
+
+    result = extract_resume_information(resume)
+
+    # Multiple spaces are reduced to one.
+    assert result.name == "Mary Jane Watson"
+
+
+def test_name_is_none_when_not_found():
+    result = extract_resume_information("Python developer with 3 years of experience.")
+
+    assert result.name is None

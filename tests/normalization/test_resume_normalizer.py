@@ -167,3 +167,12 @@ def test_everything_extracted_by_stage_1_is_normalized():
 
         for value in values:
             assert translate(fst, value) is not None, value
+
+
+def test_name_is_copied_without_changes():
+    extracted = ExtractedData(name="Wednesday Addams", programming_languages=["JS"])
+
+    result = normalize_resume(extracted)
+
+    assert result.name == "Wednesday Addams"
+    assert normalize_resume(ExtractedData()).name is None

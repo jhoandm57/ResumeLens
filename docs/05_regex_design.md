@@ -1,7 +1,10 @@
 # ResumeLens – Regular Expression Extraction Stage
 
+## 1. Purpose of the Stage
+
 ResumeLens receives a résumé as unstructured text and uses regular expressions implemented with Python's `re` module to identify relevant information such as:
 
+- Candidate name
 - Contact information
 - Programming languages
 - Frameworks and libraries
@@ -44,13 +47,48 @@ Git          -> GIT
 
 This separation allows each stage of the formal-language pipeline to have a specific responsibility.
 
+### 1.1 Requirements of the Stage
+
+According to the project statement, for each relevant type of information the team must:
+
+| Requirement | Where |
+| :--- | :--- |
+| Define the corresponding regular expression | Section 4 (one subsection per category) and `src/model/extraction/regex_patterns.py` |
+| Explain the language or textual pattern recognized by the expression | Section 4, paragraph **Language recognized** of each subsection |
+| Implement the expression using Python's `re` module | `src/model/extraction/resume_extractor.py` (Section 9.2) |
+| Keep the extracted information in a file or a data structure | `ExtractedData` dataclass in `src/model/extraction/extracted_data.py` (Section 9.3) |
+
+Notation used in the **Language recognized** paragraphs: `L(R)` is the language (set of strings) recognized by the expression `R`; `·` is concatenation, `|` is union, `*` is zero or more repetitions, `+` is one or more repetitions, and `?` is an optional element.
+
 ---
 
 ## 2. Extraction Categories
 
 The regular expression system is divided into several categories. Each category corresponds to a type of information that ResumeLens must be able to identify in a résumé.
 
-### 2.1 Contact Information
+### 2.1 Candidate Name
+
+The name of the candidate is needed by the candidate-profile stage (DSL), which must represent the personal information of the candidate.
+
+Unlike the other categories, the name does not belong to a controlled vocabulary: any person can have any name. For this reason the name is recognized by its **form** and its **position** in the résumé:
+
+- It is written with capital initials (`Wednesday Addams`) or completely in capitals (`CLARK KENT`).
+- It has between 2 and 4 words, optionally joined by lower-case particles (`Juan de la Cruz`).
+- It appears alone in the **first non-empty line** of the résumé (as in the examples of the statement), or after an explicit label (`Name: Mary Jane Watson`).
+
+Examples:
+
+```text
+Wednesday Addams
+Mary Jane Watson
+María José Gómez
+Juan de la Cruz
+Name: Peter Parker
+```
+
+The name is a single value (one résumé belongs to one candidate), so it is stored as a string, not as a list.
+
+### 2.2 Contact Information
 
 This category includes information used to identify communication channels for the candidate.
 
@@ -58,6 +96,8 @@ The initial implementation will support:
 
 - Email addresses
 - Telephone numbers
+
+(The candidate name is described in Section 2.1.)
 
 Examples:
 
@@ -69,7 +109,7 @@ john.smith@gmail.com
 +57-300-1234567
 ```
 
-### 2.2 Programming Languages
+### 2.3 Programming Languages
 
 The programming-language vocabulary is obtained by combining the qualifications of the four reference profiles.
 
@@ -95,7 +135,7 @@ PYTHON
 
 can be recognized as the same extracted lexical item while preserving the original text found in the résumé.
 
-### 2.3 Frameworks and Libraries
+### 2.4 Frameworks and Libraries
 
 The framework and library vocabulary combines the technologies associated with the four profiles.
 
@@ -124,6 +164,7 @@ NumPy
 Scikit-learn
 Scikit learn
 Scikitlearn
+sklearn
 
 TensorFlow
 Tensor Flow
@@ -159,7 +200,7 @@ NodeJS
 
 should both be extracted.
 
-### 2.4 Databases
+### 2.5 Databases
 
 The database vocabulary includes the database-related qualifications present in the reference profiles and the examples provided by the project.
 
@@ -187,7 +228,7 @@ POSTGRESQL
 
 The extraction stage preserves the original variant.
 
-### 2.5 Academic Qualifications
+### 2.6 Academic Qualifications
 
 This category identifies academic degrees and fields of study that may appear in a résumé.
 
@@ -222,7 +263,7 @@ Master's in Data Science
 Ph.D. in Computer Science
 ```
 
-### 2.6 Professional Experience
+### 2.7 Professional Experience
 
 The professional experience category identifies explicit references to years of experience.
 
@@ -235,6 +276,8 @@ Examples include:
 2 yrs of experience
 4 years of professional experience
 ```
+
+Expressions where the number is only part of a larger number (`1.5 years of experience`, `10-15 years of experience`) are **not** extracted, because extracting only `5` or `15` would give a wrong value.
 
 The initial regular expression focuses on explicit experience expressions instead of attempting to infer experience from job descriptions.
 
@@ -252,7 +295,7 @@ Worked at Google from 2022 to 2025.
 
 will not necessarily be interpreted as a number of years by the regular expression stage.
 
-### 2.7 Tools and Technologies
+### 2.8 Tools and Technologies
 
 This category contains technologies and tools that are relevant to the four professional profiles but are not necessarily programming languages or frameworks.
 
@@ -265,6 +308,8 @@ Docker
 Kubernetes
 
 Nmap
+
+Linux
 
 TCP/IP
 TCP IP
@@ -299,7 +344,7 @@ TCP/IP
 
 and is not converted into a canonical representation until the normalization stage.
 
-### 2.8 Other Relevant Qualifications
+### 2.9 Other Relevant Qualifications
 
 Some qualifications describe concepts or professional capabilities rather than a specific programming language, framework, database, or tool.
 
@@ -418,6 +463,7 @@ NumPy
 Scikit-learn
 Scikit learn
 Scikitlearn
+sklearn
 
 TensorFlow
 Tensor Flow
@@ -535,6 +581,8 @@ The regular expressions are divided by extraction category instead of using one 
 
 This design makes the implementation easier to understand, test, modify, and extend.
 
+All the patterns are applied with `re.IGNORECASE` (Section 5), **except the name patterns** (Section 4.1), because capital letters are exactly what identifies a proper name.
+
 The main patterns will be defined in:
 
 ```text
@@ -553,7 +601,103 @@ The extracted information will be represented in:
 src/model/extraction/extracted_data.py
 ```
 
-### 4.1 Email
+### 4.1 Candidate Name
+
+The name is recognized with two expressions built from the same pieces:
+
+```python
+_UPPER = r"A-ZÀ-ÖØ-Þ"        # upper-case letters, including accented letters
+_LOWER = r"a-zß-öø-ÿ"        # lower-case letters, including accented letters
+
+_NAME_WORD = (
+    rf"(?:(?:[{_UPPER}]['’])?[{_UPPER}][{_LOWER}]+(?:[-'’]?[{_UPPER}]?[{_LOWER}]+)*"
+    rf"|[{_UPPER}]{{2,}}(?:[-'’][{_UPPER}]{{2,}})*)"
+)
+
+_NAME_PARTICLE = r"(?:de|del|la|las|los|da|das|do|dos|di|du|van|von|der|y)"
+
+_FULL_NAME = (
+    rf"{_NAME_WORD}"
+    rf"(?:[ \t]+(?:{_NAME_PARTICLE}[ \t]+)*{_NAME_WORD}){{1,3}}"
+)
+
+NAME_LABEL_PATTERN = (
+    rf"^[ \t]*(?i:(?:full[ \t]+)?name)[ \t]*:[ \t]*"
+    rf"({_FULL_NAME})"
+    rf"[ \t]*$"
+)
+
+NAME_HEADER_PATTERN = (
+    rf"\A\s*{_NOT_A_NAME}"
+    rf"({_FULL_NAME})"
+    rf"[ \t]*$"
+)
+```
+
+#### Structure
+
+`_NAME_WORD` recognizes one word of a name in two forms:
+
+- **Capitalized word:** one upper-case letter followed by lower-case letters. It may contain internal capitals or a hyphen/apostrophe (`McDonald`, `Jean-Luc`) and may start with a letter and an apostrophe (`O'Connor`).
+- **Word in capitals:** two or more upper-case letters (`PARKER`), optionally joined by a hyphen (`JEAN-LUC`).
+
+`_NAME_PARTICLE` recognizes the lower-case connectors of Spanish, Portuguese, Dutch, and German names (`de`, `la`, `van`, `von`, ...).
+
+`_FULL_NAME` is a word followed by **1 to 3** more words (`{1,3}`), separated by spaces or tabs (`[ \t]+`), with optional particles between them. Spaces and tabs are used instead of `\s` so that a name **cannot continue in the next line**.
+
+`NAME_LABEL_PATTERN` (form 1) recognizes a line with an explicit label:
+
+- `^` and `$` (with `re.MULTILINE`) require the label and the name to occupy a complete line.
+- `(?i:(?:full[ \t]+)?name)` accepts `Name`, `NAME`, `Full Name`, ... The flag `(?i:...)` makes **only the label** case-insensitive.
+- The group `(...)` captures the name.
+
+`NAME_HEADER_PATTERN` (form 2) recognizes the name in the header of the résumé:
+
+- `\A` is the beginning of the text (not of each line), and `\s*` skips blank lines and indentation. Therefore only the **first non-empty line** can be the name.
+- `[ \t]*$` requires that nothing else appears in that line, so `Technical Skills:` or `JS, React.js` are not names (they contain `:` or `,`).
+- `_NOT_A_NAME` contains two negative lookaheads:
+
+```python
+_NOT_A_NAME = (
+    r"(?!(?i:curriculum|resume|résumé|cv|technical|skills|experience"
+    r"|professional|education|contact|profile|summary|objective)\b)"
+    r"(?![^\n]*\b(?i:developer|engineer|scientist|analyst|architect"
+    r"|manager|designer|programmer|consultant|intern)\b)"
+)
+```
+
+The first one rejects a line that starts with a section heading (`Curriculum Vitae`, `Technical Skills`). The second one rejects a line that contains a job title anywhere (`Python Developer`, `Senior Data Engineer`); `[^\n]*` does not cross the line break, so only the first line is checked.
+
+The extraction function (`extract_name`) tries form 1 first and form 2 after it, and replaces any sequence of spaces with a single space (`Mary   Jane Watson -> Mary Jane Watson`). If no form matches, the name is `None`.
+
+#### Language recognized
+
+Let `U` be the set of upper-case letters and `l` the set of lower-case letters (both including accented letters), `S = { space, tab }`, and `P` the set of particles. Then:
+
+```text
+L(_NAME_WORD) = ( (U·{', ’})? · U · l+ · ({-, ', ’}? · U? · l+)* )
+              ∪ ( U·U+ · ({-, ', ’} · U·U+)* )
+
+L(_FULL_NAME) = L(_NAME_WORD) · ( S+ · (P·S+)* · L(_NAME_WORD) ){1,3}
+```
+
+that is, sequences of 2 to 4 name words separated by blanks, with optional particles. `NAME_HEADER_PATTERN` recognizes the texts whose first non-empty line belongs to `L(_FULL_NAME)` and does not start with a heading word or contain a job title; `NAME_LABEL_PATTERN` recognizes lines of the form `(full )?name : w`, with `w ∈ L(_FULL_NAME)`.
+
+Examples:
+
+| Input (first line) | Result |
+| :--- | :--- |
+| `Wednesday Addams` | `Wednesday Addams` |
+| `Mary Jane Watson` | `Mary Jane Watson` |
+| `Juan de la Cruz` | `Juan de la Cruz` |
+| `CLARK KENT` | `CLARK KENT` |
+| `Name: Peter Parker` (any line) | `Peter Parker` |
+| `Technical Skills:` | not a name |
+| `Python Developer` | not a name |
+| `wednesday addams` | not a name (no capitals) |
+| `Wednesday` | not a name (only one word) |
+
+### 4.2 Email
 
 The initial email pattern is:
 
@@ -632,103 +776,79 @@ john.smith@gmail.com
 peter_parker@company.co
 ```
 
-### 4.2 Phone Number
+### 4.3 Phone Number
 
-The initial phone-number pattern is:
+The phone-number pattern is:
 
 ```python
 PHONE_PATTERN = (
-    r"(?<!\d)(?:\+?\d{1,3}[\s.-]?)?"
-    r"(?:\(?\d{2,4}\)?[\s.-]?)?"
-    r"\d{3}[\s.-]?\d{3,4}"
-    r"(?:[\s.-]?\d{2,4})?(?!\d)"
+    r"(?<![\w+])"
+    r"(?:"
+    r"\+\d{1,3}[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}"
+    r"|\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}"
+    r")"
+    r"(?!\d)"
 )
 ```
 
-This pattern is designed to support common phone-number representations without restricting the system to a single country.
+A phone number is accepted in two forms:
 
-Examples include:
-
-```text
-+57 300 1234567
-+57-300-1234567
-300 123 4567
-300-123-4567
-```
+1. **With country code** (`+` followed by 1 to 3 digits): `+57 300 1234567`, `+57-300-123-4567`, `+57 (300) 123 4567`. The separators between the groups are optional.
+2. **Without country code**: the groups 3-3-4 **must** be separated: `300 123 4567`, `300-123-4567`, `(300) 123-4567`.
 
 #### Important components
 
-```regex
-\+?
-```
+- `\+\d{1,3}` is the country code (`+57`, `+1`).
+- `\(?\d{3}\)?` is the area/mobile prefix, optionally between parentheses.
+- `[\s.-]?` is an optional separator (space, `.`, or `-`); `[\s.-]` (without `?`) is a mandatory separator.
+- `\d{3}` and `\d{4}` are the last two groups.
+- `(?<![\w+])` and `(?!\d)` (lookarounds) prevent extracting only part of a longer sequence of digits or letters.
 
-allows an optional `+`.
+#### Design decisions
 
-Therefore both:
+- A long number without separators and without `+` (for example `1234567890`) is **not** accepted, because it cannot be distinguished from an ID number.
+- Year ranges and dates such as `2001-2004` or `2001-10-09` are **not** accepted, because they do not have the 3-3-4 structure.
 
-```text
-+57
-```
+#### Language recognized
 
-and:
-
-```text
-57
-```
-
-can be recognized.
-
-The expression:
-
-```regex
-\d
-```
-
-represents a digit from 0 to 9.
-
-The expression:
-
-```regex
-\d{3}
-```
-
-means exactly three digits.
-
-The expression:
-
-```regex
-[\s.-]?
-```
-
-allows an optional separator such as:
+Let `D` be the set of digits and `Sep = { space, ., - }`:
 
 ```text
-space
-.
--
+L(PHONE_PATTERN) = ( + · D{1,3} · Sep? · (? · D³ · )? · Sep? · D³ · Sep? · D⁴ )
+                 ∪ ( (? · D³ · )? · Sep · D³ · Sep · D⁴ )
 ```
 
-The negative lookarounds:
+not preceded by a letter, digit, or `+`, and not followed by a digit.
 
-```regex
-(?<!\d)
-(?!\d)
-```
+| Input | Result |
+| :--- | :--- |
+| `+57 300 1234567` | extracted |
+| `300 123 4567` | extracted |
+| `(300) 123-4567` | extracted |
+| `1234567890` | not extracted |
+| `2001-2004` | not extracted |
 
-help prevent the expression from extracting only part of a larger sequence of digits.
-
-Because telephone numbers have many international formats, this pattern should be validated with test cases and may be extended if additional formats are required.
-
-### 4.3 Programming Languages
+### 4.4 Programming Languages
 
 The initial pattern is:
 
 ```python
 PROGRAMMING_LANGUAGES_PATTERN = (
-    r"\b(?:JavaScript|Javascript|TypeScript|Python|SQL|Bash)\b"
+    r"(?:"
+    r"\b(?:"
+    r"JavaScript"
+    r"|Javascript"
+    r"|TypeScript"
+    r"|Python"
+    r"|SQL"
+    r"|Bash"
+    r")\b"
     r"|(?<![\w.])JS(?!\w)"
+    r")"
 )
 ```
+
+`JS` is separated from the other alternatives because `\bJS\b` would incorrectly match the `js` of `React.js`, `Node.js`, or `app.js` (the dot is a word boundary). The lookbehind `(?<![\w.])` rejects `JS` preceded by a letter, digit, or dot.
 
 The main structure is:
 
@@ -787,7 +907,18 @@ can all be detected.
 
 The extracted value should preserve the original text appearing in the résumé.
 
-### 4.4 Frameworks and Libraries
+#### Language recognized
+
+With case-insensitive matching (`re.IGNORECASE`):
+
+```text
+L = { javascript, typescript, python, sql, bash }   (as complete words)
+  ∪ { js }                                          (not preceded by a letter, digit, or ".")
+```
+
+where every letter can be upper-case or lower-case. For example `React.js` does not produce `JS`.
+
+### 4.5 Frameworks and Libraries
 
 The initial pattern is:
 
@@ -803,6 +934,7 @@ FRAMEWORKS_LIBRARIES_PATTERN = (
     r"|Pandas"
     r"|NumPy"
     r"|Scikit[-\s]?learn"
+    r"|sklearn"
     r"|Tensor\s*Flow"
     r"|Py\s*Torch"
     r"|Apache\s+Spark"
@@ -912,6 +1044,8 @@ allows:
 - whitespace,
 - or no separator.
 
+The abbreviation `sklearn` (an example of the project statement) is a separate alternative.
+
 #### TensorFlow variants
 
 The expression:
@@ -946,15 +1080,36 @@ Py Torch
 Py    Torch
 ```
 
-### 4.5 Databases
+#### Language recognized
+
+With case-insensitive matching, and `W` = one or more whitespace characters:
+
+```text
+L = { react, react.js, reactjs, angular, vue, node.js, nodejs, django,
+      pandas, numpy, sklearn, spark, airflow }
+  ∪ { spring·W·boot, apache·W·spark, apache·W·airflow }
+  ∪ { scikit·(- | W | ε)·learn }
+  ∪ { tensor·W?·flow, py·W?·torch }
+```
+
+as complete words (`\b` at both ends).
+
+### 4.6 Databases
 
 The initial database pattern is:
 
 ```python
 DATABASES_PATTERN = (
-    r"\b(?:PostgreSQL|Postgres|SQL|NoSQL)\b"
+    r"\b(?:"
+    r"PostgreSQL"
+    r"|Postgres"
+    r"|NoSQL"
+    r"|SQL"
+    r")\b"
 )
 ```
+
+The longer alternatives are written first (`PostgreSQL` before `Postgres`, `NoSQL` before `SQL`) so that the regex engine tries the most specific form first.
 
 The expression recognizes:
 
@@ -994,13 +1149,21 @@ POSTGRESQL
 
 This preserves the separation of responsibilities between the two stages.
 
-### 4.6 Academic Qualifications
+#### Language recognized
+
+```text
+L = { postgresql, postgres, nosql, sql }
+```
+
+as complete words, with any capitalization. `MySQL` is not recognized (`\b` does not exist between `y` and `S`).
+
+### 4.7 Academic Qualifications
 
 The initial academic qualification pattern is:
 
 ```python
 ACADEMIC_QUALIFICATIONS_PATTERN = (
-    r"(?:"
+    r"\b(?:"
     r"Bachelor(?:['’]s)?"
     r"|B\.?Sc\.?"
     r"|Master(?:['’]s)?"
@@ -1057,14 +1220,40 @@ Computer Science
 
 The extraction stage does not attempt to determine whether the degree has been completed or whether it is currently being pursued.
 
-### 4.7 Professional Experience
+#### Boundaries
+
+- `\b` at the beginning prevents matches inside other words (for example, `master` inside `Webmaster` or `Headmaster`).
+- `(?!\w)` is used at the end instead of `\b`, because `Ph.D.` and `B.Sc.` end with a period, and there is no word boundary after a period followed by a space.
+- `['’]` accepts both apostrophes: `Bachelor's` and `Bachelor’s`.
+
+#### Language recognized
+
+With case-insensitive matching, and `W` = one or more whitespace characters:
+
+```text
+L = { bachelor, bachelor's, master, master's }
+  ∪ { b·.?·sc·.?, m·.?·sc·.?, ph·.?·d·.? }
+  ∪ { computer·W·science, software·W·engineering,
+      systems·W·engineering, data·W·science }
+```
+
+starting at a word boundary and not followed by a letter or digit.
+
+### 4.8 Professional Experience
 
 The initial experience pattern is:
 
 ```python
 EXPERIENCE_PATTERN = (
-    r"\b\d+\+?\s*(?:years?|yrs?)"
-    r"(?:\s+of)?\s+experience\b"
+    r"(?<![\d.,\-–])"
+    r"(?<![\-–]\s)"
+    r"\b"
+    r"\d+\+?"
+    r"\s*(?:years?|yrs?)"
+    r"(?:\s+of)?"
+    r"(?:\s+professional)?"
+    r"\s+experience"
+    r"\b"
 )
 ```
 
@@ -1155,9 +1344,47 @@ and:
 
 can be recognized.
 
+The expression:
+
+```regex
+(?:\s+professional)?
+```
+
+allows the optional word `professional`:
+
+```text
+4 years of professional experience
+```
+
+The lookbehinds:
+
+```regex
+(?<![\d.,\-–])
+(?<![\-–]\s)
+```
+
+prevent taking only part of a number:
+
+```text
+1.5 years of experience     -> not extracted (instead of "5 years of experience")
+10-15 years of experience   -> not extracted (instead of "15 years of experience")
+10 - 15 years of experience -> not extracted
+```
+
 The pattern intentionally focuses on explicit mentions of experience.
 
-### 4.8 Tools and Technologies
+#### Language recognized
+
+Let `D` be the set of digits and `W` one or more whitespace characters:
+
+```text
+L(EXPERIENCE_PATTERN) = D+ · (+)? · W? · (year | years | yr | yrs)
+                        · (W·of)? · (W·professional)? · W · experience
+```
+
+with any capitalization, as long as the number is not preceded by a digit, `.`, `,`, `-`, or `–`. This is the same language accepted by the transducer `M_EXP` of the normalization stage (`06_fst_design.md`, Section 6.7).
+
+### 4.9 Tools and Technologies
 
 The initial pattern is:
 
@@ -1168,6 +1395,7 @@ TOOLS_TECHNOLOGIES_PATTERN = (
     r"|Docker"
     r"|Kubernetes"
     r"|Nmap"
+    r"|Linux"
     r"|TCP\s*/?\s*IP"
     r"|Networking"
     r"|Network"
@@ -1240,7 +1468,19 @@ Data Warehousing
 
 These expressions represent data-engineering concepts rather than individual software libraries.
 
-### 4.9 Other Relevant Qualifications
+#### Language recognized
+
+With case-insensitive matching, `W` = one or more whitespace characters and `W?` = zero or more:
+
+```text
+L = { git, docker, kubernetes, nmap, linux, networking, network, etl, elt }
+  ∪ { tcp·W?·(/)?·W?·ip }
+  ∪ { data·W·pipeline, data·W·pipelines, data·W·warehousing, data·W·warehouse }
+```
+
+as complete words.
+
+### 4.10 Other Relevant Qualifications
 
 The initial pattern is:
 
@@ -1319,6 +1559,23 @@ Cybersecurity
 Cyber Security
 ```
 
+#### Order of the alternatives
+
+`Machine Learning Model Development` is written **before** `Machine Learning`. The regex engine tries the alternatives from left to right, so the longer qualification is extracted complete instead of only its first two words.
+
+#### Language recognized
+
+With case-insensitive matching and `W` = one or more whitespace characters:
+
+```text
+L = { machine·(- | W)·learning·W·model·W·development, machine·(- | W)·learning }
+  ∪ { rest·W·api, rest·W·apis }
+  ∪ { vulnerability·W·assessment, security·W·automation }
+  ∪ { cyber·W?·security }
+```
+
+as complete words.
+
 ---
 
 ## 5. Case-Insensitive Matching
@@ -1347,6 +1604,8 @@ PyThOn
 ```
 
 will all be recognized.
+
+The only exception is the candidate name (Section 4.1): its patterns are applied **without** `re.IGNORECASE`, because capital letters are what distinguishes a proper name from the rest of the text (only the label `Name:` is case-insensitive, with the inline flag `(?i:...)`).
 
 This avoids unnecessarily creating patterns such as:
 
@@ -1658,6 +1917,8 @@ Structure:
 ```text
 regex_patterns.py
 │
+├── NAME_LABEL_PATTERN
+├── NAME_HEADER_PATTERN
 ├── EMAIL_PATTERN
 ├── PHONE_PATTERN
 ├── PROGRAMMING_LANGUAGES_PATTERN
@@ -1701,6 +1962,7 @@ Build structured extraction result
 The module will contain functions conceptually organized as:
 
 ```text
+extract_name()
 extract_contact_information()
 extract_programming_languages()
 extract_frameworks_libraries()
@@ -1721,65 +1983,45 @@ This function will serve as the main entry point for the extraction module.
 
 ### 9.3 `extracted_data.py`
 
-This file defines the structure used to represent the extracted information.
-
-The structure will contain:
-
-```text
-ExtractedResume
-│
-├── contact
-│   ├── emails
-│   └── phones
-│
-├── programming_languages
-│
-├── frameworks_libraries
-│
-├── databases
-│
-├── academic_qualifications
-│
-├── professional_experience
-│
-├── tools_technologies
-│
-└── other_qualifications
-```
-
-A conceptual example is:
+This file defines the data structure that keeps the extracted information (requirement: *keep the extracted information in a file or a data structure*):
 
 ```python
-{
-    "contact": {
-        "emails": ["mary.watson@email.com"],
-        "phones": ["+57 300 1234567"]
-    },
-    "programming_languages": [
-        "Python",
-        "SQL"
-    ],
-    "frameworks_libraries": [
-        "Pandas",
-        "NumPy",
-        "Scikit-learn",
-        "TensorFlow"
-    ],
-    "databases": [
-        "PostgreSQL"
-    ],
-    "academic_qualifications": [],
-    "professional_experience": [
-        "2 years of experience"
-    ],
-    "tools_technologies": [
-        "Git"
-    ],
-    "other_qualifications": []
-}
+@dataclass
+class ExtractedData:
+    name: str | None = None          # a single value (one candidate per résumé)
+
+    emails: list[str] = field(default_factory=list)
+    phones: list[str] = field(default_factory=list)
+
+    programming_languages: list[str] = field(default_factory=list)
+    frameworks_libraries: list[str] = field(default_factory=list)
+    databases: list[str] = field(default_factory=list)
+    academic_qualifications: list[str] = field(default_factory=list)
+    professional_experience: list[str] = field(default_factory=list)
+    tools_technologies: list[str] = field(default_factory=list)
+    other_qualifications: list[str] = field(default_factory=list)
 ```
 
-The exact Python implementation of this structure will be defined when the extraction module is implemented.
+Every list keeps the strings **exactly as they were found** in the résumé and in the order in which they appear. If a category is not found, its list is empty (and the name is `None`).
+
+Example for the résumé of Section 11:
+
+```python
+ExtractedData(
+    name="Mary Jane Watson",
+    emails=["mary.watson@email.com"],
+    phones=["+57 300 1234567"],
+    programming_languages=["Python", "SQL"],
+    frameworks_libraries=["Pandas", "NumPy", "Scikit-learn", "TensorFlow"],
+    databases=["Postgres", "SQL"],
+    academic_qualifications=[],
+    professional_experience=["2 years of experience"],
+    tools_technologies=["Git"],
+    other_qualifications=[],
+)
+```
+
+`ExtractedData` is the input of the normalization stage (`06_fst_design.md`).
 
 ---
 
@@ -1835,6 +2077,9 @@ Postgres, SQL and Git.
 The extraction stage should identify:
 
 ```text
+Name:
+    Mary Jane Watson
+
 Contact:
     mary.watson@email.com
     +57 300 1234567
@@ -1854,10 +2099,13 @@ Frameworks/Libraries:
 
 Databases:
     Postgres
+    SQL
 
 Tools/Technologies:
     Git
 ```
+
+`SQL` is extracted both as a programming language and as a database; the normalization stage keeps only one `SQL` token.
 
 The extracted information remains in its original lexical form.
 
@@ -2038,7 +2286,15 @@ This limitation should be considered when designing test cases and interpreting 
 
 Telephone numbers have many international representations. The initial phone pattern supports common formats, but it is not intended to represent every possible telephone-number format worldwide.
 
-Additional formats may be added if required by the test cases.
+Additional formats may be added if required by the test cases. Numbers without separators and without country code are intentionally rejected to avoid confusing them with ID numbers.
+
+### 13.5 Candidate name
+
+The name is recognized by its form and position, not by a vocabulary. Therefore:
+
+- If the résumé does not start with the name and has no `Name:` label, the name is not extracted (`None`).
+- A first line formed only by capitalized words that are not a name and do not contain a heading word or a job title (for example, `Bogotá Colombia`) could be taken as a name.
+- Names with more than 4 words (without counting particles) or written completely in lower case are not recognized.
 
 ---
 
@@ -2052,10 +2308,10 @@ The extraction stage can be summarized as:
                      v
              Regular Expressions
                      |
-       +-------------+-------------+
-       |             |             |
-       v             v             v
-   Contact      Qualifications   Experience
+       +-------------+-------------+-------------+
+       |             |             |             |
+       v             v             v             v
+     Name        Contact      Qualifications   Experience
                      |
         +------------+------------+
         |            |            |

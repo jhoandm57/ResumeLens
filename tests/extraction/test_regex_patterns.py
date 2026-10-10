@@ -211,3 +211,63 @@ def test_linux_is_extracted():
     result = find_matches(TOOLS_TECHNOLOGIES_PATTERN, text)
 
     assert result == ["Linux", "Docker"]
+
+
+# -------------------------------------------------------------------
+# Candidate name
+# -------------------------------------------------------------------
+
+from src.model.extraction.regex_patterns import (  # noqa: E402
+    NAME_LABEL_PATTERN,
+    NAME_HEADER_PATTERN,
+)
+
+
+def find_name(pattern, text):
+    # The name patterns are NOT case-insensitive.
+    match = re.search(pattern, text, flags=re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def test_name_header_examples_from_statement():
+    assert find_name(NAME_HEADER_PATTERN, "Wednesday Addams\n3 years of experience") == "Wednesday Addams"
+    assert find_name(NAME_HEADER_PATTERN, "Mary Jane Watson\nTechnical Skills:") == "Mary Jane Watson"
+
+
+def test_name_header_skips_blank_lines_and_indentation():
+    text = "\n\n    Peter Parker\n    peter@mail.com"
+
+    assert find_name(NAME_HEADER_PATTERN, text) == "Peter Parker"
+
+
+def test_name_header_supports_accents_particles_and_capitals():
+    assert find_name(NAME_HEADER_PATTERN, "María José Gómez\n") == "María José Gómez"
+    assert find_name(NAME_HEADER_PATTERN, "Juan de la Cruz\n") == "Juan de la Cruz"
+    assert find_name(NAME_HEADER_PATTERN, "Shaun O'Connor\n") == "Shaun O'Connor"
+    assert find_name(NAME_HEADER_PATTERN, "CLARK KENT\n") == "CLARK KENT"
+
+
+def test_name_header_only_reads_the_first_line():
+    # The name is not in the first non-empty line.
+    text = "3 years of experience\nWednesday Addams"
+
+    assert find_name(NAME_HEADER_PATTERN, text) is None
+
+
+def test_name_header_rejects_headings_and_job_titles():
+    assert find_name(NAME_HEADER_PATTERN, "Technical Skills\nPython") is None
+    assert find_name(NAME_HEADER_PATTERN, "Technical Skills:\nPython") is None
+    assert find_name(NAME_HEADER_PATTERN, "Curriculum Vitae\n") is None
+    assert find_name(NAME_HEADER_PATTERN, "Python Developer\n") is None
+    assert find_name(NAME_HEADER_PATTERN, "Senior Data Engineer\n") is None
+    assert find_name(NAME_HEADER_PATTERN, "JS, React.js, NodeJS\n") is None
+    assert find_name(NAME_HEADER_PATTERN, "Wednesday\n") is None
+    assert find_name(NAME_HEADER_PATTERN, "wednesday addams\n") is None
+
+
+def test_name_label():
+    text = "Contact\nName: Wednesday Addams\nEmail: w@mail.com"
+
+    assert find_name(NAME_LABEL_PATTERN, text) == "Wednesday Addams"
+    assert find_name(NAME_LABEL_PATTERN, "FULL NAME:  Mary Jane Watson") == "Mary Jane Watson"
+    assert find_name(NAME_LABEL_PATTERN, "Name: python developer") is None

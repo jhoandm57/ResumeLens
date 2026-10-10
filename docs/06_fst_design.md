@@ -44,6 +44,18 @@ According to the project statement, for each transducer the team must:
 - Propose its own transformations (the ones in the statement are only examples).
 - Prepare the normalized qualifications for the recognition stage, organizing them in the canonical order defined by each profile.
 
+Where each requirement is satisfied:
+
+| Requirement | Where |
+| :--- | :--- |
+| Complete 7-tuple of each transducer (`Q`, `Σ`, `Γ`, `δ`, `ω`, `q0`, `F`) | Section 6 (summary of each transducer) and `06a_fst_formal_definitions.md` (complete lists of states and complete `δ` / `ω` tables) |
+| Graphical representation | Section 6 (diagrams in this document) and `diagrams/fst/*.svg` (complete diagram of every transducer) |
+| Implementation with `pyformlang` | `src/model/normalization/fst_builder.py` (Section 9) |
+| Own transformations | Section 4 (the vocabulary extends the examples of the statement with the variants of the four profiles) |
+| Canonical order by profile | Section 7 (`src/model/normalization/profile_order.py`) |
+
+`06a_fst_formal_definitions.md` and `diagrams/fst/` are **generated from the transducers built by the code** (`python -m src.visualization.fst_export`, Section 9.7), so the formal definitions, the diagrams, and the implementation cannot be different.
+
 ---
 
 ## 3. Design Decisions
@@ -68,7 +80,7 @@ Reasons:
 - The categories of the extraction stage are preserved, which keeps the separation of responsibilities between stages.
 - Adding a new variant only modifies the transducer of its category.
 
-Contact information (emails and phone numbers) is **not normalized**, because it does not represent qualifications.
+The candidate name and the contact information (emails and phone numbers) are **not normalized**, because they do not represent qualifications. They are copied without changes to the output of the stage (Section 8), so that the candidate-profile stage (DSL) receives all the candidate information in one object.
 
 ### 3.2 Character-level transducers
 
@@ -185,6 +197,7 @@ The tables show the input variants (after preprocessing) and their canonical tok
 | `docker` | `DOCKER` |
 | `kubernetes` | `KUBERNETES` |
 | `nmap` | `NMAP` |
+| `linux` | `LINUX` |
 | `tcp/ip`, `tcp ip`, `tcp / ip`, `tcp /ip`, `tcp/ ip`, `tcpip` | `TCP_IP` |
 | `networking`, `network` | `NETWORKING` |
 | `etl` | `ETL` |
@@ -222,6 +235,9 @@ The tables show the input variants (after preprocessing) and their canonical tok
 | `3 years of experience` | `3` |
 | `5+ yrs experience` | `5` |
 | `2 yrs of experience` | `2` |
+| `4 years of professional experience` | `4` |
+| `3years experience` | `3` |
+| `3 bananas` | rejected (no output) |
 
 `M_EXP` keeps only the number of years. The value is stored as an integer (`experience_years`).
 
@@ -272,13 +288,15 @@ Properties of this construction:
 
 In the code, the transducers are **generated automatically** from the tables of Section 4 (see Section 9), so the tables and the transducers cannot be different.
 
+The complete instance of the construction for every transducer (list of states with the prefix that each one represents, and the complete `δ` / `ω` table) is in `06a_fst_formal_definitions.md`.
+
 ---
 
 ## 6. Transducers
 
 ### 6.1 Databases — `M_DB`
 
-This transducer is presented completely as the reference example. The other dictionary transducers follow exactly the same construction.
+This transducer is presented completely as the reference example. The other dictionary transducers follow exactly the same construction; their complete tables are in `06a_fst_formal_definitions.md`. Complete diagram: `diagrams/fst/m_db.svg`.
 
 ```text
 V = { postgresql, postgres, nosql, sql }
@@ -404,8 +422,11 @@ V  = { javascript, js, typescript, python, sql, bash }
 |Q| = 36  (35 prefixes + qf)
 q0 = q_ε
 F  = { qf }
-δ, ω: defined by the construction of Section 5 with the table of Section 4.1.
+δ, ω: construction of Section 5 with the table of Section 4.1
+      (40 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
+
+Complete diagram: `diagrams/fst/m_lang.svg`.
 
 Note that `javascript` and `js` share the state of the prefix `j`, and both end with the output `JAVASCRIPT`.
 
@@ -465,10 +486,11 @@ V  = the 23 variants of Section 4.2
 |Q| = 140
 q0 = q_ε
 F  = { qf }
-δ, ω: defined by the construction of Section 5 with the table of Section 4.2.
+δ, ω: construction of Section 5 with the table of Section 4.2
+      (161 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Because the complete diagram has 140 states, the document shows the fragment of the `REACT` and `NODE_JS` variants. The complete diagram is generated from the code (Section 9.4).
+Because the complete diagram has 140 states, the document shows the fragment of the `REACT` and `NODE_JS` variants. The complete diagram is `diagrams/fst/m_fw.svg`, generated from the code (Section 9.7).
 
 ```mermaid
 flowchart LR
@@ -508,17 +530,18 @@ The fragment shows the two main ideas of the design:
 ### 6.4 Tools and technologies — `M_TOOLS`
 
 ```text
-V  = the 18 variants of Section 4.4
-Σ  = { space, /, a, b, c, d, e, g, h, i, k, l, m, n, o, p, r, s, t, u, w, # }
-Γ  = { GIT, DOCKER, KUBERNETES, NMAP, TCP_IP, NETWORKING, ETL, ELT,
+V  = the 19 variants of Section 4.4
+Σ  = { space, /, a, b, c, d, e, g, h, i, k, l, m, n, o, p, r, s, t, u, w, x, # }
+Γ  = { GIT, DOCKER, KUBERNETES, NMAP, LINUX, TCP_IP, NETWORKING, ETL, ELT,
        DATA_PIPELINE, DATA_WAREHOUSING }
-|Q| = 84
+|Q| = 89
 q0 = q_ε
 F  = { qf }
-δ, ω: defined by the construction of Section 5 with the table of Section 4.4.
+δ, ω: construction of Section 5 with the table of Section 4.4
+      (106 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Fragment for the `TCP_IP` variants:
+Complete diagram: `diagrams/fst/m_tools.svg`. Fragment for the `TCP_IP` variants:
 
 ```mermaid
 flowchart LR
@@ -563,8 +586,11 @@ V  = the 10 variants of Section 4.5
 |Q| = 137
 q0 = q_ε
 F  = { qf }
-δ, ω: defined by the construction of Section 5 with the table of Section 4.5.
+δ, ω: construction of Section 5 with the table of Section 4.5
+      (145 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
+
+Complete diagram: `diagrams/fst/m_other.svg`.
 
 This transducer shows why the `#` marker is necessary: `machine learning` is a prefix of `machine learning model development`. In the state reached after `machine learning`:
 
@@ -581,10 +607,11 @@ V  = the 20 variants of Section 4.6
 |Q| = 107
 q0 = q_ε
 F  = { qf }
-δ, ω: defined by the construction of Section 5 with the table of Section 4.6.
+δ, ω: construction of Section 5 with the table of Section 4.6
+      (125 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Fragment for the `PHD` variants:
+Complete diagram: `diagrams/fst/m_acad.svg`. Fragment for the `PHD` variants:
 
 ```mermaid
 flowchart LR
@@ -604,16 +631,31 @@ flowchart LR
 
 ### 6.7 Professional experience — `M_EXP`
 
-This transducer is different from the others. It does not map a complete word to a token; it **copies the digits** of the input to the output and **erases** the rest of the characters.
+This transducer is different from the others. It does not map a complete word to a token; it **copies the digits** of the number of years to the output and **erases** the rest of the expression.
+
+`M_EXP` does not accept any string after the number: the rest of the input must have exactly the structure accepted by `EXPERIENCE_PATTERN` in the extraction stage (after preprocessing):
+
+```text
+digits (+)? (space)? (year | years | yr | yrs) ( of)? ( professional)? experience #
+```
+
+In this way, inputs such as `3 bananas` or `3 of experience` are **rejected**, and the transducer is a complete specification of the language of experience expressions, not only a filter of digits.
+
+#### Formal definition
 
 ```text
 M_EXP = (Q, Σ, Γ, δ, ω, q0, F)
 
-Q  = { q0, q1, q2, qf }
-Σ  = Digit ∪ Letter ∪ { +, space, # }
-     Digit  = { 0, 1, ..., 9 }
-     Letter = { a, b, ..., z }
-Γ  = Digit
+Q  = { q0, q1, plus, sp, y1, y2, y3, unit, units, b1, o1, of, b2,
+       p1, ..., p11, prof, b3, x1, ..., x9, exp, qf }          (37 states)
+
+Σ  = Digit ∪ { +, space, a, c, e, f, i, l, n, o, p, r, s, x, y, # }   (26 symbols)
+     Digit = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+     (the letters are exactly the letters of "year", "yrs", "of",
+      "professional", and "experience")
+
+Γ  = Digit                                                     (10 symbols)
+
 q0 = q0
 F  = { qf }
 ```
@@ -623,57 +665,112 @@ Meaning of the states:
 | State | Meaning |
 | :--- | :--- |
 | `q0` | Nothing has been read |
-| `q1` | Reading the number of years |
-| `q2` | Reading the rest of the expression (`+`, `years`, `of`, `experience`) |
-| `qf` | End of input (accepting state) |
+| `q1` | Reading the number of years (the digits are copied) |
+| `plus`, `sp` | Optional `+` and optional space after the number |
+| `y1`, `y2`, `y3` | `y`, `ye`, `yea` |
+| `unit` / `units` | `year` or `yr` / `years` or `yrs` |
+| `b1` | Space after the unit |
+| `o1`, `of`, `b2` | `o`, `of`, and the space after `of` |
+| `p1` … `p11`, `prof`, `b3` | Prefixes of `professional`, the complete word, and the space after it |
+| `x1` … `x9`, `exp` | Prefixes of `experience` and the complete word |
+| `qf` | End marker read (accepting state) |
 
-Transition relation `δ` and output relation `ω` (`d` represents any digit, `c` any symbol of `Σ` that is not a digit and not `#`):
+#### Transition relation `δ` and output relation `ω`
+
+`d` represents any digit. A row with several origin states represents one transition from each of them.
 
 | From | Input | To | Output |
-| :--- | :--- | :--- | :--- |
-| `q0` | `d` | `q1` | `d` |
-| `q1` | `d` | `q1` | `d` |
-| `q1` | `c` | `q2` | `ε` |
-| `q2` | `c` | `q2` | `ε` |
-| `q2` | `d` | `q2` | `ε` |
-| `q2` | `#` | `qf` | `ε` |
+| :--- | :---: | :--- | :--- |
+| `q0` | `d` | `q1` | `d` (copy) |
+| `q1` | `d` | `q1` | `d` (copy) |
+| `q1` | `+` | `plus` | `ε` |
+| `q1`, `plus` | `space` | `sp` | `ε` |
+| `q1`, `plus`, `sp` | `y` | `y1` | `ε` |
+| `y1` | `e` | `y2` | `ε` |
+| `y2` | `a` | `y3` | `ε` |
+| `y3` | `r` | `unit` | `ε` |
+| `y1` | `r` | `unit` | `ε` |
+| `unit` | `s` | `units` | `ε` |
+| `unit`, `units` | `space` | `b1` | `ε` |
+| `b1` | `o` | `o1` | `ε` |
+| `o1` | `f` | `of` | `ε` |
+| `of` | `space` | `b2` | `ε` |
+| `b1`, `b2` | `p` | `p1` | `ε` |
+| `p1` → `p2` → … → `p11` → `prof` | `r o f e s s i o n a l` (one letter per transition) | | `ε` |
+| `prof` | `space` | `b3` | `ε` |
+| `b1`, `b2`, `b3` | `e` | `x1` | `ε` |
+| `x1` → `x2` → … → `x9` → `exp` | `x p e r i e n c e` (one letter per transition) | | `ε` |
+| `exp` | `#` | `qf` | `ε` |
+
+In total there are **63 transitions** (20 of them copy a digit). Every transition is listed one by one in `06a_fst_formal_definitions.md`.
+
+The transducer is **deterministic**: from every state, each input symbol has at most one transition.
+
+#### Graphical representation
+
+Complete diagram: `diagrams/fst/m_exp.svg`. The chains of `professional` and `experience` are shown compressed:
 
 ```mermaid
 flowchart LR
     start([start]) --> q0
-    q0 -- "d / d" --> q1
-    q1 -- "d / d" --> q1
-    q1 -- "c / ε" --> q2
-    q2 -- "c / ε" --> q2
-    q2 -- "d / ε" --> q2
-    q2 -- "# / ε" --> qf(((qf)))
+    q0 -- "0-9 / copy" --> q1
+    q1 -- "0-9 / copy" --> q1
+    q1 -- "+ / ε" --> plus
+    q1 -- "␣ / ε" --> sp
+    plus -- "␣ / ε" --> sp
+    q1 -- "y / ε" --> y1
+    plus -- "y / ε" --> y1
+    sp -- "y / ε" --> y1
+    y1 -- "e / ε" --> y2
+    y2 -- "a / ε" --> y3
+    y3 -- "r / ε" --> unit
+    y1 -- "r / ε" --> unit
+    unit -- "s / ε" --> units
+    unit -- "␣ / ε" --> b1
+    units -- "␣ / ε" --> b1
+    b1 -- "o / ε" --> o1
+    o1 -- "f / ε" --> of
+    of -- "␣ / ε" --> b2
+    b1 -- "p / ε" --> p1
+    b2 -- "p / ε" --> p1
+    p1 -- "rofessional / ε (11 states)" --> prof
+    prof -- "␣ / ε" --> b3
+    b1 -- "e / ε" --> x1
+    b2 -- "e / ε" --> x1
+    b3 -- "e / ε" --> x1
+    x1 -- "xperience / ε (9 states)" --> exp
+    exp -- "# / ε" --> qf
+    qf(((qf)))
 ```
 
-Example:
+#### Example of translation
 
 ```text
-Input tape:   5 + ␣ y r s ␣ e x p e r i e n c e #
-States:       q0 -5-> q1 -+-> q2 -...-> q2 -#-> qf
-Output tape:  5
+Input extracted:  5+ yrs experience
+Preprocessing:    5+ yrs experience
+Input tape:       5 + ␣ y r s ␣ e x p e r i e n c e #
+States:           q0 -5-> q1 -+-> plus -␣-> sp -y-> y1 -r-> unit -s-> units -␣-> b1
+                  -e-> x1 -x-> x2 ... -e-> exp -#-> qf
+Output tape:      5
 ```
 
 The output `5` is converted to the integer `5`. If the resume contains several experience expressions, the normalizer keeps the **maximum** value.
 
-The regular expression of the extraction stage guarantees that every input of `M_EXP` starts with a number, so `M_EXP` only needs to separate the number from the rest of the expression.
+Example of rejection: `3 bananas#` — from `sp` there is no transition with `b`, so the input is rejected and no value is produced.
 
 ### 6.8 Summary of the Transducers
 
-| Transducer | Variants `|V|` | States `|Q|` | Transitions | Tokens `|Γ|` |
-| :--- | :---: | :---: | :---: | :---: |
-| `M_LANG` | 6 | 36 | 40 | 5 |
-| `M_FW` | 23 | 140 | 161 | 13 |
-| `M_DB` | 4 | 20 | 22 | 3 |
-| `M_TOOLS` | 18 | 84 | 100 | 10 |
-| `M_OTHER` | 10 | 137 | 145 | 6 |
-| `M_ACAD` | 20 | 107 | 125 | 7 |
-| `M_EXP` | — | 4 | 6 (by symbol class) | 10 (digits) |
+| Transducer | Variants (size of V) | States (size of Q) | Input symbols (size of Σ) | Transitions | Tokens (size of Γ) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `M_LANG` | 6 | 36 | 18 | 40 | 5 |
+| `M_FW` | 23 | 140 | 27 | 161 | 13 |
+| `M_DB` | 4 | 20 | 11 | 22 | 3 |
+| `M_TOOLS` | 19 | 89 | 23 | 106 | 11 |
+| `M_OTHER` | 10 | 137 | 22 | 145 | 6 |
+| `M_ACAD` | 20 | 107 | 24 | 125 | 7 |
+| `M_EXP` | — | 37 | 26 | 63 | 10 (digits) |
 
-These numbers must match the transducers generated by the code. They are a good unit test (Section 11).
+These numbers are the ones of the transducers generated by the code (they are also printed in the summary of `06a_fst_formal_definitions.md`). The number of states is checked by the unit tests (Section 11).
 
 ---
 
@@ -722,10 +819,11 @@ Each profile is divided into **groups**. The groups are written in order, and in
 | Order | Group | Tokens |
 | :---: | :--- | :--- |
 | 1 | Scripting | `PYTHON`, `BASH` |
-| 2 | Networking | `NETWORKING`, `TCP_IP` |
-| 3 | Security | `CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT`, `SECURITY_AUTOMATION` |
-| 4 | Containers | `DOCKER`, `KUBERNETES` |
-| 5 | Version control | `GIT` |
+| 2 | Operating system | `LINUX` |
+| 3 | Networking | `NETWORKING`, `TCP_IP` |
+| 4 | Security | `CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT`, `SECURITY_AUTOMATION` |
+| 5 | Containers | `DOCKER`, `KUBERNETES` |
+| 6 | Version control | `GIT` |
 
 #### Data Engineer
 
@@ -743,7 +841,8 @@ Each profile is divided into **groups**. The groups are written in order, and in
 1. Only the tokens that appear in the order table of the profile are kept for that profile. The other tokens are not relevant for that automaton and are discarded **only for that profile**.
 2. The kept tokens are sorted by their position in the order table.
 3. Each token appears at most once.
-4. Academic qualifications and years of experience are not part of the sequence. They are kept in the normalized data for the candidate profile (DSL stage).
+4. If a candidate has more than one token of the same group (for example `PANDAS` and `NUMPY`), all of them are kept, in the order of the group. Deciding which groups are mandatory, and accepting one or more tokens per group, is the responsibility of the automata (stage 3). For this reason `profile_order.py` exports `PROFILE_GROUPS`, so that the automata are built from the same definition of the groups.
+5. Academic qualifications, years of experience, the name, and the contact information are not part of the sequence. They are kept in the normalized data for the candidate profile (DSL stage).
 
 Since there are four profiles, the result of this step is **four sequences**, one for each automaton.
 
@@ -777,6 +876,12 @@ The result of the stage is stored in a new data structure, similar to `Extracted
 ```python
 @dataclass
 class NormalizedData:
+    # Copied from ExtractedData without changes (not normalized)
+    name: str | None
+    emails: list[str]
+    phones: list[str]
+
+    # Canonical tokens produced by the transducers
     programming_languages: list[str]
     frameworks_libraries: list[str]
     databases: list[str]
@@ -785,7 +890,9 @@ class NormalizedData:
     academic_qualifications: list[str]
     experience_years: int | None
 
-    # All qualification tokens without duplicates, in the order they were found
+    # All qualification tokens without duplicates, grouped by category
+    # (languages, frameworks, databases, tools, other); inside each
+    # category they follow the order of the resume
     qualifications: list[str]
 
     # One sorted sequence per profile (input of the automata)
@@ -795,6 +902,9 @@ class NormalizedData:
 Example for Wednesday Addams:
 
 ```text
+name                    = Wednesday Addams
+emails                  = []
+phones                  = []
 programming_languages   = [JAVASCRIPT]
 frameworks_libraries    = [REACT, NODE_JS]
 databases               = [POSTGRESQL]
@@ -827,6 +937,13 @@ src/model/normalization/
     profile_order.py            # Order tables of Section 7
     normalized_data.py          # NormalizedData dataclass
     resume_normalizer.py        # Main entry point of the stage
+
+src/visualization/
+    fst_export.py               # Generates diagrams/fst/ and 06a_fst_formal_definitions.md
+
+diagrams/fst/                   # m_lang, m_fw, m_db, m_tools, m_other, m_acad, m_exp (.dot and .svg)
+
+docs/06a_fst_formal_definitions.md   # Complete 7-tuples (generated)
 
 tests/normalization/
     __init__.py
@@ -864,6 +981,8 @@ DATABASES_VOCABULARY = {
 
 Builds each dictionary transducer from its table using the construction of Section 5.
 
+The transducers are instances of `ResumeLensFST`, a subclass of the `pyformlang` `FST` that only adds a list with the transitions in the order they were added. Translation is done by `pyformlang` without any change; the list is used to generate the documentation (Section 9.7).
+
 ```python
 from pyformlang.fst import FST
 
@@ -872,38 +991,44 @@ INITIAL_STATE = "q0"
 FINAL_STATE = "qf"
 
 
-def build_dictionary_fst(vocabulary: dict[str, str]) -> FST:
-    """
-    Build a prefix-tree transducer.
-    Each character produces ε; the end marker produces the canonical token.
-    """
-    fst = FST()
-    fst.add_start_state(INITIAL_STATE)
-    fst.add_final_state(FINAL_STATE)
+class ResumeLensFST(FST):
+    def __init__(self):
+        super().__init__()
+        self.transition_list = []
 
-    state_of_prefix = {"": INITIAL_STATE}
+    def add_transition(self, s_from, input_symbol, s_to, output_symbols):
+        output_symbols = list(output_symbols)
+        super().add_transition(s_from, input_symbol, s_to, output_symbols)
+        self.transition_list.append((s_from, input_symbol, s_to, output_symbols))
 
-    for variant, token in vocabulary.items():
+
+def _add_prefix_tree(fst, root, words, state_name):
+    # One state per prefix; every character writes ε and
+    # the end marker writes the output of the word.
+    state_of_prefix = {"": root}
+    for word, output in words.items():
         prefix = ""
-        for char in variant:
+        for char in word:
             next_prefix = prefix + char
             if next_prefix not in state_of_prefix:
-                state_of_prefix[next_prefix] = f"q{len(state_of_prefix)}"
-                fst.add_transition(
-                    state_of_prefix[prefix], char,
-                    state_of_prefix[next_prefix], []      # output ε
-                )
+                state_of_prefix[next_prefix] = f"{state_name}{len(state_of_prefix)}"
+                fst.add_transition(state_of_prefix[prefix], char,
+                                   state_of_prefix[next_prefix], [])       # output ε
             prefix = next_prefix
+        fst.add_transition(state_of_prefix[prefix], END_MARKER,
+                           FINAL_STATE, output)                            # output token
 
-        fst.add_transition(
-            state_of_prefix[prefix], END_MARKER,
-            FINAL_STATE, [token]                          # output token
-        )
 
+def build_dictionary_fst(vocabulary):
+    fst = ResumeLensFST()
+    fst.add_start_state(INITIAL_STATE)
+    fst.add_final_state(FINAL_STATE)
+    words = {variant: [token] for variant, token in vocabulary.items()}
+    _add_prefix_tree(fst, INITIAL_STATE, words, "q")
     return fst
 ```
 
-`build_experience_fst()` builds `M_EXP` with the four states and transitions of Section 6.7, adding one transition for each digit and each non-digit symbol of `Σ`.
+`build_experience_fst()` builds `M_EXP` with the 37 states and 63 transitions of Section 6.7. The helper `_add_word` adds the chain of states that reads a word (`year`, `of`, `professional`, `experience`) writing `ε`.
 
 ### 9.4 Translation with pyformlang
 
@@ -925,27 +1050,31 @@ Notes for the implementation:
 
 - In `pyformlang`, `add_transition(s_from, input_symbol, s_to, output_symbols)` receives the output as a list of symbols; an empty list represents `ε`.
 - `translate` returns the possible outputs. Since the transducers are deterministic, there is at most one.
-- Check the exact behavior of `translate` in the installed version of `pyformlang` (for example, the `max_length` parameter) with a first small test.
-- The graphical representation of each transducer can be generated from the code (for example, exporting the transducer to `networkx` / DOT), so the diagrams always match the implementation.
+- The input is a list of characters, so multi-character strings are never treated as a single symbol.
+- The graphical representation of each transducer is generated from the code (Section 9.7), so the diagrams always match the implementation.
 
 ### 9.5 `profile_order.py`
 
+Each profile is defined as an ordered list of **groups** (Section 7.2). The order of a profile is the concatenation of its groups.
+
 ```python
-FULL_STACK_ORDER = [
-    "JAVASCRIPT", "TYPESCRIPT",
-    "REACT", "ANGULAR", "VUE",
-    "NODE_JS", "DJANGO", "SPRING_BOOT",
-    "REST_API",
-    "SQL", "POSTGRESQL", "NOSQL",
-    "GIT",
+FULL_STACK_GROUPS = [
+    ["JAVASCRIPT", "TYPESCRIPT"],           # Frontend language
+    ["REACT", "ANGULAR", "VUE"],            # Frontend framework
+    ["NODE_JS", "DJANGO", "SPRING_BOOT"],   # Backend
+    ["REST_API"],                           # API
+    ["SQL", "POSTGRESQL", "NOSQL"],         # Database
+    ["GIT"],                                # Version control
 ]
 
-# MACHINE_LEARNING_ORDER, CYBERSECURITY_ORDER, DATA_ENGINEER_ORDER ...
+# MACHINE_LEARNING_GROUPS, CYBERSECURITY_GROUPS, DATA_ENGINEER_GROUPS ...
 
-PROFILE_ORDERS = {
-    "FULL_STACK_DEVELOPER": FULL_STACK_ORDER,
+PROFILE_GROUPS = {
+    FULL_STACK_DEVELOPER: FULL_STACK_GROUPS,
     # ...
 }
+
+PROFILE_ORDERS = {profile: _flatten(groups) for profile, groups in PROFILE_GROUPS.items()}
 
 
 def sort_for_profile(tokens: list[str], profile: str) -> list[str]:
@@ -953,6 +1082,8 @@ def sort_for_profile(tokens: list[str], profile: str) -> list[str]:
     kept = {token for token in tokens if token in order}
     return sorted(kept, key=order.index)
 ```
+
+`PROFILE_GROUPS` is also the input for building the automata of stage 3.
 
 ### 9.6 `resume_normalizer.py`
 
@@ -970,6 +1101,21 @@ Steps:
 3. Translate `professional_experience` with `M_EXP` and keep the maximum.
 4. Build `qualifications` joining the technical categories without duplicates.
 5. Build `profile_sequences` with `sort_for_profile` for each profile.
+6. Copy the name, emails, and phones of `ExtractedData` without changes.
+
+### 9.7 Generation of the formal definitions and diagrams
+
+```bash
+python -m src.visualization.fst_export
+```
+
+The script builds the seven transducers with the same functions used by `resume_normalizer.py` and writes:
+
+- `diagrams/fst/<transducer>.dot`: Graphviz description of the transducer (start arrow, accepting state `qf` with a double circle, edges labeled `input / output`). Parallel transitions between the same two states are drawn as one edge (for example, `0-9 / copy` in `M_EXP`).
+- `diagrams/fst/<transducer>.svg`: rendered diagram (only if the Graphviz program `dot` is installed; the `.dot` files can also be opened in any online Graphviz viewer).
+- `docs/06a_fst_formal_definitions.md`: complete 7-tuple of every transducer, with the meaning of every state and the complete `δ` / `ω` table.
+
+If the vocabulary or the transducers change, the script must be executed again so the documentation stays consistent.
 
 ---
 
@@ -1034,16 +1180,19 @@ Sequence for MACHINE_LEARNING_ENGINEER
 | SQL in two categories | `SQL` as language and database | Only one `SQL` |
 | Canonical order | `Git, NodeJS, JS, Postgres, React.js` | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT` |
 | Tokens of other profile | `PANDAS` in Full Stack | Discarded for Full Stack |
-| Size of the transducers | Build each FST | `|Q|` and transitions of Section 6.8 |
+| Experience with wrong structure | `3 bananas`, `3 of experience` | No output (`None`) |
+| Size of the transducers | Build each FST | Number of states of Section 6.8 |
+| Name and contact | `ExtractedData(name="Wednesday Addams")` | `NormalizedData.name == "Wednesday Addams"` (not normalized) |
 
 ---
 
-## 12. Observations for the Extraction Stage
+## 12. Consistency with the Extraction Stage
 
-While designing the vocabulary, the following differences with the current extraction stage were found. They do not change the design of the transducers, but they affect which strings arrive at this stage:
+The vocabulary of each transducer must be the same as the vocabulary of the corresponding regular expression of `05_regex_design.md`. The differences found while designing this stage were corrected in the extraction stage:
 
-- `sklearn` is included in `M_FW` because it is an example of the statement, but the current regular expression does not extract it. Until the regex includes it, this variant will never reach the transducer.
-- The Cybersecurity profile lists `Linux`, but it is not in the vocabulary of the extraction stage. If it is added to the regex, the token `LINUX` must be added to `M_TOOLS` and to the Cybersecurity order (Section 7.2).
+- `sklearn` (an example of the statement) is now extracted by `FRAMEWORKS_LIBRARIES_PATTERN` and normalized to `SCIKIT_LEARN`.
+- `Linux` (Cybersecurity profile) is now extracted by `TOOLS_TECHNOLOGIES_PATTERN`; the token `LINUX` was added to `M_TOOLS` and to the Cybersecurity order (Section 7.2).
+- The structure accepted by `M_EXP` is the same structure of `EXPERIENCE_PATTERN` (including the optional word `professional`).
 - `Vue.js` is extracted as `Vue`, so it is normalized correctly to `VUE`.
 
 ---

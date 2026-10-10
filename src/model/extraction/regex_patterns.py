@@ -6,6 +6,69 @@ It does not perform extraction or normalization.
 """
 
 # -------------------------------------------------------------------
+# Candidate name
+# -------------------------------------------------------------------
+
+# Upper-case and lower-case letters, including accented letters
+# (Á, É, Ñ, Ü, ...) so that Spanish names are also recognized.
+_UPPER = r"A-ZÀ-ÖØ-Þ"
+_LOWER = r"a-zß-öø-ÿ"
+
+# One word of a name:
+#   - Capitalized:  Wednesday, Peter, María, McDonald, O'Connor, Jean-Luc
+#   - All capitals: PARKER (some résumés write the name in capitals)
+_NAME_WORD = (
+    rf"(?:(?:[{_UPPER}]['’])?[{_UPPER}][{_LOWER}]+(?:[-'’]?[{_UPPER}]?[{_LOWER}]+)*"
+    rf"|[{_UPPER}]{{2,}}(?:[-'’][{_UPPER}]{{2,}})*)"
+)
+
+# Lower-case particles that may appear between the words of a name:
+#   Juan de la Cruz, Ludwig van Beethoven
+_NAME_PARTICLE = r"(?:de|del|la|las|los|da|das|do|dos|di|du|van|von|der|y)"
+
+# A complete name: 2 to 4 words, optionally joined by particles.
+#   Wednesday Addams, Mary Jane Watson, Juan de la Cruz Pérez
+_FULL_NAME = (
+    rf"{_NAME_WORD}"
+    rf"(?:[ \t]+(?:{_NAME_PARTICLE}[ \t]+)*{_NAME_WORD}){{1,3}}"
+)
+
+# Words that start a section heading, not a name. They are excluded
+# so that a first line such as "Technical Skills" or "Curriculum Vitae"
+# is not taken as the candidate name.
+#
+# The second lookahead rejects a line that contains a job title
+# (for example "Python Developer" or "Data Engineer"). The dot does
+# not cross line breaks, so only the current line is checked.
+_NOT_A_NAME = (
+    r"(?!(?i:curriculum|resume|résumé|cv|technical|skills|experience"
+    r"|professional|education|contact|profile|summary|objective)\b)"
+    r"(?![^\n]*\b(?i:developer|engineer|scientist|analyst|architect"
+    r"|manager|designer|programmer|consultant|intern)\b)"
+)
+
+# Form 1: an explicit label.
+#   Name: Wednesday Addams
+#   Full Name: Mary Jane Watson
+# The label is case-insensitive (?i:...), but the name itself is not,
+# because capital letters are what identify a proper name.
+NAME_LABEL_PATTERN = (
+    rf"^[ \t]*(?i:(?:full[ \t]+)?name)[ \t]*:[ \t]*"
+    rf"({_FULL_NAME})"
+    rf"[ \t]*$"
+)
+
+# Form 2: the name alone in the first non-empty line of the résumé
+# (the usual header of a résumé, as in the examples of the statement).
+#   \A\s*   start of the text, skipping blank lines and indentation
+#   [ \t]*$ nothing else can appear in that line (no ":" or ",")
+NAME_HEADER_PATTERN = (
+    rf"\A\s*{_NOT_A_NAME}"
+    rf"({_FULL_NAME})"
+    rf"[ \t]*$"
+)
+
+# -------------------------------------------------------------------
 # Contact information
 # -------------------------------------------------------------------
 

@@ -122,6 +122,7 @@ def normalize_resume(extracted: ExtractedData) -> NormalizedData:
     }
 
     return NormalizedData(
+        name=extracted.name,
         emails=list(extracted.emails),
         phones=list(extracted.phones),
         programming_languages=languages,
