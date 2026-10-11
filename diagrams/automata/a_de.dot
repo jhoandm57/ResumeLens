@@ -1,0 +1,25 @@
+digraph A_DE {
+    rankdir=LR;
+    node [shape=circle, style=filled, fillcolor="#dbe8f7", fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
+    start [shape=point, style=invis];
+    q6 [shape=doublecircle, fillcolor="#d5ecd4"];
+    start -> q0;
+    q0 -> q1 [label="PYTHON"];
+    q0 -> q1 [label="SQL"];
+    q1 -> q2 [label="SPARK"];
+    q2 -> q3 [label="AIRFLOW"];
+    q3 -> q4 [label="ETL"];
+    q3 -> q4 [label="ELT"];
+    q3 -> q4 [label="DATA_PIPELINE"];
+    q2 -> q4 [label="ETL"];
+    q2 -> q4 [label="ELT"];
+    q2 -> q4 [label="DATA_PIPELINE"];
+    q4 -> q5 [label="DATA_WAREHOUSING"];
+    q4 -> q5 [label="POSTGRESQL"];
+    q4 -> q5 [label="NOSQL"];
+    q5 -> q6 [label="GIT"];
+    q1 -> q1 [label="PYTHON\nSQL"];
+    q4 -> q4 [label="ETL\nELT\nDATA_PIPELINE"];
+    q5 -> q5 [label="DATA_WAREHOUSING\nPOSTGRESQL\nNOSQL"];
+}

@@ -1382,7 +1382,7 @@ L(EXPERIENCE_PATTERN) = D+ · (+)? · W? · (year | years | yr | yrs)
                         · (W·of)? · (W·professional)? · W · experience
 ```
 
-with any capitalization, as long as the number is not preceded by a digit, `.`, `,`, `-`, or `–`. This is the same language accepted by the transducer `M_EXP` of the normalization stage (`06_fst_design.md`, Section 6.7).
+with any capitalization, as long as the number is not preceded by a digit, `.`, `,`, `-`, or `–`. Because this expression already guarantees the structure, the transducer `M_EXP` of the normalization stage only has to copy the number and erase the rest (`06_fst_design.md`, Section 6.7).
 
 ### 4.9 Tools and Technologies
 

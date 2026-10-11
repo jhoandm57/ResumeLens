@@ -1,0 +1,25 @@
+digraph A_ML {
+    rankdir=LR;
+    node [shape=circle, style=filled, fillcolor="#dbe8f7", fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
+    start [shape=point, style=invis];
+    q6 [shape=doublecircle, fillcolor="#d5ecd4"];
+    start -> q0;
+    q0 -> q1 [label="PYTHON"];
+    q1 -> q2 [label="PANDAS"];
+    q1 -> q2 [label="NUMPY"];
+    q2 -> q3 [label="SCIKIT_LEARN"];
+    q2 -> q3 [label="TENSORFLOW"];
+    q2 -> q3 [label="PYTORCH"];
+    q3 -> q4 [label="MACHINE_LEARNING"];
+    q3 -> q4 [label="ML_MODEL_DEVELOPMENT"];
+    q4 -> q5 [label="SQL"];
+    q4 -> q5 [label="POSTGRESQL"];
+    q3 -> q5 [label="SQL"];
+    q3 -> q5 [label="POSTGRESQL"];
+    q5 -> q6 [label="GIT"];
+    q2 -> q2 [label="PANDAS\nNUMPY"];
+    q3 -> q3 [label="SCIKIT_LEARN\nTENSORFLOW\nPYTORCH"];
+    q4 -> q4 [label="MACHINE_LEARNING\nML_MODEL_DEVELOPMENT"];
+    q5 -> q5 [label="SQL\nPOSTGRESQL"];
+}

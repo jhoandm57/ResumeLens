@@ -1,137 +1,148 @@
 """
 Résumé normalization logic for ResumeLens.
 
-This module applies the finite-state transducers defined in
-fst_builder.py to the information extracted by the regular
-expression stage, and organizes the canonical tokens in the
-order of each professional profile.
+ResumeNormalizer applies the finite-state transducers to the
+information extracted by the regular-expression stage and organizes
+the canonical tokens in the order of each professional profile.
 
 This stage only transforms and organizes the information.
 Profile classification is performed in the next stage.
+
+See docs/06_fst_design.md.
 """
 
+from src.model.classification.profile_vocabulary import ProfileVocabulary
 from src.model.extraction.extracted_data import ExtractedData
 
-from .canonical_vocabulary import (
-    LANGUAGES_VOCABULARY,
-    FRAMEWORKS_VOCABULARY,
-    DATABASES_VOCABULARY,
-    TOOLS_VOCABULARY,
-    OTHER_VOCABULARY,
-    ACADEMIC_VOCABULARY,
-)
-from .fst_builder import (
-    build_dictionary_fst,
-    build_experience_fst,
-    translate,
-)
+from .normalization_transducers import NormalizationTransducers
 from .normalized_data import NormalizedData
-from .profile_order import PROFILE_ORDERS, sort_for_profile
 
 
-# The transducers are built only once, when the module is imported.
-LANGUAGES_FST = build_dictionary_fst(LANGUAGES_VOCABULARY)
-FRAMEWORKS_FST = build_dictionary_fst(FRAMEWORKS_VOCABULARY)
-DATABASES_FST = build_dictionary_fst(DATABASES_VOCABULARY)
-TOOLS_FST = build_dictionary_fst(TOOLS_VOCABULARY)
-OTHER_FST = build_dictionary_fst(OTHER_VOCABULARY)
-ACADEMIC_FST = build_dictionary_fst(ACADEMIC_VOCABULARY)
-EXPERIENCE_FST = build_experience_fst()
+class ResumeNormalizer:
+    """
+    Normalizes the extracted data of a résumé (stage 2).
+    """
+
+    def __init__(self):
+        # The seven transducers are built only once.
+        self.transducers = NormalizationTransducers()
+
+    # ---------------------------------------------------------------
+    # Normalization with the transducers
+    # ---------------------------------------------------------------
+
+    def normalize_list(self, fst, values: list[str]) -> list[str]:
+        """
+        Translate every extracted string with a transducer.
+
+        Rejected strings are ignored and duplicates are removed,
+        keeping the order of the first appearance.
+        """
+
+        tokens = [self.transducers.translate(fst, value) for value in values]
+
+        return _unique([token for token in tokens if token is not None])
+
+    def normalize_experience(self, values: list[str]) -> int | None:
+        """
+        Obtain the number of years of experience with M_EXP.
+
+        If there are several experience expressions,
+        the maximum value is kept.
+        """
+
+        years = []
+
+        for value in values:
+            output = self.transducers.translate(self.transducers.experience, value)
+
+            if output:
+                years.append(int(output))
+
+        return max(years) if years else None
+
+    # ---------------------------------------------------------------
+    # Sorting by profile (canonical order)
+    # ---------------------------------------------------------------
+
+    @staticmethod
+    def sort_for_profile(tokens: list[str], profile: str) -> list[str]:
+        """
+        Organize the tokens in the canonical order of a profile.
+
+        - Only the tokens of the profile are kept.
+        - Each token appears at most once.
+        - The tokens follow the order of the groups of the profile
+          (ProfileVocabulary.GROUPS). If several tokens belong to the
+          same group, all of them are kept.
+
+        Example (Full Stack):
+            GIT, NODE_JS, JAVASCRIPT, POSTGRESQL, REACT
+            -> JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
+        """
+
+        order = [
+            token
+            for group in ProfileVocabulary.GROUPS[profile]
+            for token in group
+        ]
+        kept = {token for token in tokens if token in order}
+
+        return sorted(kept, key=order.index)
+
+    # ---------------------------------------------------------------
+    # Main entry point
+    # ---------------------------------------------------------------
+
+    def normalize(self, extracted: ExtractedData) -> NormalizedData:
+        """
+        Normalize all the information extracted from a résumé.
+
+        This is the main entry point of the normalization stage.
+
+        Args:
+            extracted: Result of the extraction stage.
+
+        Returns:
+            NormalizedData with the canonical tokens and the sorted
+            sequence of each profile (input of the automata).
+        """
+
+        t = self.transducers
+
+        languages = self.normalize_list(t.languages, extracted.programming_languages)
+        frameworks = self.normalize_list(t.frameworks, extracted.frameworks_libraries)
+        databases = self.normalize_list(t.databases, extracted.databases)
+        tools = self.normalize_list(t.tools, extracted.tools_technologies)
+        other = self.normalize_list(t.other, extracted.other_qualifications)
+        academic = self.normalize_list(t.academic, extracted.academic_qualifications)
+
+        # SQL can appear as a language and as a database;
+        # _unique keeps only one occurrence.
+        qualifications = _unique(languages + frameworks + databases + tools + other)
+
+        profile_sequences = {
+            profile: self.sort_for_profile(qualifications, profile)
+            for profile in ProfileVocabulary.GROUPS
+        }
+
+        return NormalizedData(
+            name=extracted.name,
+            emails=list(extracted.emails),
+            phones=list(extracted.phones),
+            programming_languages=languages,
+            frameworks_libraries=frameworks,
+            databases=databases,
+            tools_technologies=tools,
+            other_qualifications=other,
+            academic_qualifications=academic,
+            experience_years=self.normalize_experience(extracted.professional_experience),
+            qualifications=qualifications,
+            profile_sequences=profile_sequences,
+        )
 
 
 def _unique(items: list[str]) -> list[str]:
-    """
-    Remove duplicates keeping the order of the first appearance.
-    """
+    """Remove duplicates keeping the order of the first appearance."""
 
     return list(dict.fromkeys(items))
-
-
-def normalize_list(fst, values: list[str]) -> list[str]:
-    """
-    Translate every extracted string with a transducer.
-
-    Rejected strings are ignored and duplicates are removed.
-
-    Args:
-        fst: Transducer of the category.
-        values: Strings extracted from the résumé.
-
-    Returns:
-        List of canonical tokens without duplicates.
-    """
-
-    tokens = [translate(fst, value) for value in values]
-
-    return _unique([token for token in tokens if token is not None])
-
-
-def normalize_experience(values: list[str]) -> int | None:
-    """
-    Obtain the number of years of experience.
-
-    If there are several experience expressions,
-    the maximum value is kept.
-
-    Args:
-        values: Experience expressions extracted from the résumé.
-
-    Returns:
-        Number of years, or None if there is no valid expression.
-    """
-
-    years = []
-
-    for value in values:
-        output = translate(EXPERIENCE_FST, value)
-
-        if output:
-            years.append(int(output))
-
-    return max(years) if years else None
-
-
-def normalize_resume(extracted: ExtractedData) -> NormalizedData:
-    """
-    Normalize all the information extracted from a résumé.
-
-    This function is the main entry point of the normalization stage.
-
-    Args:
-        extracted: Result of the extraction stage.
-
-    Returns:
-        NormalizedData object with canonical tokens and the sorted
-        sequence of each profile.
-    """
-
-    languages = normalize_list(LANGUAGES_FST, extracted.programming_languages)
-    frameworks = normalize_list(FRAMEWORKS_FST, extracted.frameworks_libraries)
-    databases = normalize_list(DATABASES_FST, extracted.databases)
-    tools = normalize_list(TOOLS_FST, extracted.tools_technologies)
-    other = normalize_list(OTHER_FST, extracted.other_qualifications)
-    academic = normalize_list(ACADEMIC_FST, extracted.academic_qualifications)
-
-    # SQL can appear as a language and as a database;
-    # _unique keeps only one occurrence.
-    qualifications = _unique(languages + frameworks + databases + tools + other)
-
-    profile_sequences = {
-        profile: sort_for_profile(qualifications, profile)
-        for profile in PROFILE_ORDERS
-    }
-
-    return NormalizedData(
-        name=extracted.name,
-        emails=list(extracted.emails),
-        phones=list(extracted.phones),
-        programming_languages=languages,
-        frameworks_libraries=frameworks,
-        databases=databases,
-        tools_technologies=tools,
-        other_qualifications=other,
-        academic_qualifications=academic,
-        experience_years=normalize_experience(extracted.professional_experience),
-        qualifications=qualifications,
-        profile_sequences=profile_sequences,
-    )

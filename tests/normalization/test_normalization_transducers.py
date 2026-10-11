@@ -1,26 +1,19 @@
-from src.model.normalization.canonical_vocabulary import (
-    LANGUAGES_VOCABULARY,
-    FRAMEWORKS_VOCABULARY,
-    DATABASES_VOCABULARY,
-    TOOLS_VOCABULARY,
-    OTHER_VOCABULARY,
-    ACADEMIC_VOCABULARY,
-)
-from src.model.normalization.fst_builder import (
-    preprocess,
-    build_dictionary_fst,
-    build_experience_fst,
-    translate,
+from src.model.normalization.normalization_transducers import (
+    NormalizationTransducers,
 )
 
 
-LANGUAGES_FST = build_dictionary_fst(LANGUAGES_VOCABULARY)
-FRAMEWORKS_FST = build_dictionary_fst(FRAMEWORKS_VOCABULARY)
-DATABASES_FST = build_dictionary_fst(DATABASES_VOCABULARY)
-TOOLS_FST = build_dictionary_fst(TOOLS_VOCABULARY)
-OTHER_FST = build_dictionary_fst(OTHER_VOCABULARY)
-ACADEMIC_FST = build_dictionary_fst(ACADEMIC_VOCABULARY)
-EXPERIENCE_FST = build_experience_fst()
+T = NormalizationTransducers()
+translate = T.translate
+preprocess = NormalizationTransducers.preprocess
+
+LANGUAGES_FST = T.languages
+FRAMEWORKS_FST = T.frameworks
+DATABASES_FST = T.databases
+TOOLS_FST = T.tools
+OTHER_FST = T.other
+ACADEMIC_FST = T.academic
+EXPERIENCE_FST = T.experience
 
 
 def test_preprocess():
@@ -115,11 +108,17 @@ def test_number_of_states():
     assert len(TOOLS_FST.states) == 89
     assert len(OTHER_FST.states) == 137
     assert len(ACADEMIC_FST.states) == 107
-    assert len(EXPERIENCE_FST.states) == 37
+    assert len(EXPERIENCE_FST.states) == 4
 
 
-def test_experience_fst_rejects_text_that_is_not_experience():
-    assert translate(EXPERIENCE_FST, "3 bananas") is None
+def test_experience_fst_only_copies_the_number():
+    # M_EXP does not validate the words of the expression: that is done
+    # by EXPERIENCE_PATTERN in stage 1. It only separates the number.
+    assert translate(EXPERIENCE_FST, "3 bananas") == "3"
+    assert translate(EXPERIENCE_FST, "12 yrs") == "12"
+
+
+def test_experience_fst_needs_a_number_first_and_text_after():
+    assert translate(EXPERIENCE_FST, "years of experience") is None
+    assert translate(EXPERIENCE_FST, "3") is None
     assert translate(EXPERIENCE_FST, "3 years of experience.") is None
-    assert translate(EXPERIENCE_FST, "3 of experience") is None
-    assert translate(EXPERIENCE_FST, "No professional experience") is None

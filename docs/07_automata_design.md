@@ -2,206 +2,177 @@
 
 ## 1. Purpose of the Stage
 
-After the normalization stage, every résumé is represented by **four sorted sequences of canonical tokens**, one per professional profile (`NormalizedData.profile_sequences`). For example, the résumé of Wednesday Addams produces, for the Full Stack Developer profile:
+The normalization stage (`06_fst_design.md`) produces, for every profile, a **sorted sequence of canonical tokens**:
 
 ```text
-JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
+PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT
 ```
 
-The purpose of this stage is to decide, with a formal and verifiable criterion, whether each sequence **belongs to the language of accepted qualification patterns** of its profile. For this purpose, ResumeLens defines one **finite automaton per profile**:
+This stage decides, for each of the four profiles, whether that sequence satisfies an **accepted qualification pattern** of the profile. Each profile has one finite automaton; the sequence is **ACCEPTED** if the automaton ends in an accepting state, and **REJECTED** otherwise.
 
-| Profile | Automaton |
+```text
+Extraction (regex) -> Normalization (FST) -> Sorting by profile -> Recognition (automata) -> ACCEPTED / REJECTED
+```
+
+A résumé can be accepted by several profiles, by one, or by none. This stage does not rank candidates and does not make hiring decisions.
+
+### 1.1 Requirements of the Stage
+
+| Requirement of the statement | Where |
 | :--- | :--- |
-| Full Stack Developer | `A_FS` |
-| Machine Learning Engineer | `A_ML` |
-| Cybersecurity Engineer | `A_SEC` |
-| Data Engineer | `A_DE` |
-
-The output of each automaton is binary:
-
-```text
-ACCEPTED  the sequence satisfies an accepted qualification pattern of the profile
-REJECTED  the sequence does not satisfy it
-```
-
-A résumé can be accepted by several profiles, by only one, or by none. This stage **does not rank candidates** and does not make hiring decisions.
+| Complete 5-tuple `M = (Q, Σ, δ, q0, F)` of each automaton | Section 5, *Formal definition* and *Transition function δ* of each automaton |
+| Type of automaton (DFA, NFA, or ε-NFA), justified with the definition | Section 3.6 and *Type of automaton* of each automaton |
+| Transition diagram | Section 5, *Transition diagram* (`diagrams/automata/*.svg`) |
+| Explanation of the profile pattern | Section 5, *Profile pattern* of each automaton |
+| Implementation with `pyformlang` | `src/model/classification/profile_automata.py` (Section 6) |
+| Classification of a résumé among the four profiles | `ProfileAutomata.classify` (Section 6) |
 
 ---
 
-## 2. Input and Output of the Stage
+## 2. Input and Output of the Stage (Connection with Stage 2)
 
 ### 2.1 Input
 
-The input is the `NormalizedData` object produced by the normalization stage. The automata only use the field `profile_sequences`:
+The input is the `NormalizedData` object produced by `ResumeNormalizer.normalize` (stage 2). Each automaton reads the sequence of its own profile:
 
-```text
-profile_sequences = {
-    FULL_STACK_DEVELOPER:      [JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT],
-    MACHINE_LEARNING_ENGINEER: [POSTGRESQL, GIT],
-    CYBERSECURITY_ENGINEER:    [GIT],
-    DATA_ENGINEER:             [POSTGRESQL, GIT],
-}
+```python
+normalized.profile_sequences[profile]
 ```
 
-The sequences already satisfy the contract defined in `06_fst_design.md`, Section 7.3:
+These sequences are already:
 
-1. They contain only tokens of the profile.
-2. The tokens follow the canonical order of the profile groups.
-3. Each token appears at most once.
+- **normalized** (`JS` → `JAVASCRIPT`, `Postgres` → `POSTGRESQL`, ...),
+- **filtered** (only the tokens of that profile are kept),
+- **sorted** in the canonical order of the profile (the groups of `ProfileVocabulary`),
+- **without duplicates**.
+
+Example (Wednesday Addams, from the statement):
+
+```text
+Résumé:                JS, React.js, NodeJS, Postgres, Git
+FULL_STACK_DEVELOPER:  JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
+```
 
 ### 2.2 Output
 
-For every profile, the stage produces a decision with:
+A dictionary with the result of each profile:
 
-- the sequence given to the automaton;
-- the result `ACCEPTED` or `REJECTED`;
-- the run of the automaton (sequence of states);
-- for a rejection, the mandatory groups that are missing (only to explain the decision; the decision is always taken by the automaton).
+```python
+{
+    "FULL_STACK_DEVELOPER": "ACCEPTED",
+    "MACHINE_LEARNING_ENGINEER": "REJECTED",
+    "CYBERSECURITY_ENGINEER": "REJECTED",
+    "DATA_ENGINEER": "REJECTED",
+}
+```
+
+This result is the input of stage 4 (candidate profile DSL), which must represent the result of the classification for each accepted profile.
+
+### 2.3 The groups are defined only once
+
+The automata expect the tokens in the order of the groups of the profile. The groups are defined **only once**, in `ProfileVocabulary.GROUPS`: stage 2 (`ResumeNormalizer.sort_for_profile`) uses them to sort the tokens, and the automata use the same lists to build their transitions. Therefore the two stages cannot become inconsistent. A unit test also checks that every sorted sequence follows the order of the groups (Section 7).
 
 ---
 
 ## 3. Design Decisions
 
-### 3.1 One automaton per profile, one common construction
+### 3.1 One automaton per profile, all with the same structure
 
-The four automata are built by the **same construction method** (Section 5) from the definition of the groups of each profile. This satisfies the requirement that the four profiles are processed by the same general software solution, not by independent implementations. Adding a new profile only requires defining its groups and which of them are mandatory.
+The four automata have the same shape: **7 states** (`q0` to `q6`), one state for each group of the profile, as in the example of the project statement:
+
+```text
+q0 --group 1--> q1 --group 2--> q2 --group 3--> q3 --group 4--> q4 --group 5--> q5 --group 6--> q6
+```
+
+Only the tokens of the groups change from one profile to another. This makes the four automata easy to compare, draw, and explain.
 
 ### 3.2 The alphabet is made of canonical tokens
 
-The transducers of stage 2 read characters, because their task is to recognize spelling variants. The automata of stage 3 work at a **higher level of abstraction**: every input symbol is a complete canonical token.
+Each symbol of `Σ` is a **complete token** (`PYTHON`, `REACT`, `GIT`), not a character. The automaton reads one token per transition. The variants (`JS`, `Javascript`, ...) never reach this stage, because stage 2 already transformed them.
+
+### 3.3 One state per group
+
+Each group contains equivalent alternatives (for example, `SCIKIT_LEARN`, `TENSORFLOW`, or `PYTORCH`). Every token of the group has its own transition from the previous state to the state of the group, exactly as in the diagram of the statement (`q2 --SCIKIT_LEARN / TENSORFLOW / PYTORCH--> q3`).
+
+The meaning of a state `qi` is: *the candidate has at least one token of group i (and all the previous mandatory groups)*.
+
+### 3.4 Loops: several tokens of the same group
+
+Stage 2 keeps **all** the tokens of a group. For example, the Machine Learning example of the statement (Mary Jane Watson) produces:
 
 ```text
-Σ(A_FS) = { JAVASCRIPT, TYPESCRIPT, REACT, ANGULAR, VUE, NODE_JS, DJANGO,
-            SPRING_BOOT, REST_API, SQL, POSTGRESQL, NOSQL, GIT }
+PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, SQL, GIT
 ```
 
-This choice is possible because the normalization stage already guarantees a finite and closed vocabulary. Working with tokens keeps the automata small (one state per token), readable, and directly related to the qualifications of the profile.
-
-### 3.3 The input is sorted
-
-Because the sequence is sorted by the canonical order of the profile, the automaton only has to move **forward** through the groups. The result does not depend on the order in which the candidate wrote the skills, and the automaton does not need to remember which groups were already seen in an arbitrary order (which would require one state per subset of groups).
-
-### 3.4 Mandatory and optional groups
-
-Each profile is divided into the groups defined in `profile_order.py`. Each group is marked as:
-
-- **Mandatory (M):** the candidate must have **at least one** token of the group.
-- **Optional (O):** the group can be missing; if it is present, it is accepted.
-
-Inside a group, the candidate can have **one or more** tokens (for example `PANDAS` and `NUMPY`), always in the order of the group.
-
-The optional groups were chosen so that the two résumé fragments of the project statement are accepted (for example, the Full Stack example does not mention `REST_API`, and the Machine Learning example of Stage 3 does not mention a model-development qualification), while the groups that identify the profile remain mandatory.
-
-### 3.5 Type of automaton: DFA
-
-The automata are **deterministic finite automata (DFA)**. The definition (Section 5) satisfies the three conditions of a DFA:
-
-1. There is exactly **one initial state** `q0`.
-2. For each state `q` and each symbol `a`, there is **at most one** next state `δ(q, a)`: the target of a transition is always the state of the token read, `q_j` for `t_j`. Therefore `δ` is a function `Q × Σ → Q` and not a relation `Q × Σ → P(Q)`.
-3. There are **no ε-transitions**: every transition consumes one token.
-
-The optional groups could also be modeled with an ε-NFA (one ε-transition to skip each optional group). The DFA is preferred because:
-
-- the classification is performed in linear time, reading every token once, without backtracking or subset simulation;
-- the run of the automaton is a single path, which makes each decision easy to explain;
-- an NFA or ε-NFA would recognize the same regular language (subset construction), so determinism does not reduce the expressive power.
-
-### 3.6 Partial transition function and trap state
-
-To keep the diagrams readable, `δ` is presented as a **partial** function: the pairs `(state, symbol)` that do not appear in the tables have no transition. Formally, `δ` is completed with a trap state `q_trap` that is not accepting and that goes to itself with every symbol:
+It has two data libraries and two ML libraries. Without loops, the automaton would read `PANDAS` (q1 → q2) and then would have no transition with `NUMPY`, so the statement's own example would be rejected. For this reason, every group with more than one token has a **loop** on its state:
 
 ```text
-δ(q, a) = q_trap       for every pair (q, a) not defined in the table
-δ(q_trap, a) = q_trap  for every a ∈ Σ
+q2 --PANDAS | NUMPY--> q2
 ```
 
-The trap state is not drawn in the diagrams. When the run goes to `q_trap`, the sequence is rejected. `pyformlang` applies the same convention: a missing transition rejects the input.
+This is the only difference with the diagram of the statement, and it is needed to accept the examples of the statement.
+
+### 3.5 Optional groups: a transition that skips the state
+
+Some groups are not required (for example, `REST_API` in Full Stack). An optional group adds transitions that **skip** its state: from the previous state, the tokens of the next group go directly to the following state.
+
+```text
+q3 --REST_API--> q4 --SQL--> q5      (with API)
+q3 --SQL--> q5                       (without API)
+```
+
+| Profile | Optional group |
+| :--- | :--- |
+| Full Stack Developer | API (`REST_API`) |
+| Machine Learning Engineer | ML development (`MACHINE_LEARNING`, `ML_MODEL_DEVELOPMENT`) |
+| Cybersecurity Engineer | Containers (`DOCKER`, `KUBERNETES`) |
+| Data Engineer | Orchestration (`AIRFLOW`) |
+
+### 3.6 Type of automaton: DFA with a partial transition function
+
+The four automata are **deterministic finite automata (DFA)**:
+
+1. There is only **one initial state** (`q0`).
+2. There are **no ε-transitions**: every transition reads one token. (The optional groups are solved with skip transitions, not with ε.)
+3. From every state, each token has **at most one** next state. The tokens of a group are different from the tokens of the next group, so the loops, the normal transitions, and the skip transitions of a state never share a token.
+
+δ is a **partial** function: if a pair (state, token) has no transition (for example, a token in the wrong order, or a token of another profile), the automaton goes to an implicit **trap state** that is not accepting, so the sequence is rejected. The trap state is not drawn, to keep the diagrams readable.
 
 ---
 
 ## 4. Profile Patterns
 
-Let the groups of a profile be `G1, G2, ..., Gk`, in canonical order. For a group `G = (t1, ..., tm)`, let `S(G)` be the language of the **non-empty ordered selections** of its tokens:
+Each profile is defined by **6 ordered groups** (`src/model/classification/profile_vocabulary.py`). A sequence satisfies the pattern if it contains:
 
-```text
-S(G) = { ti1 ti2 ... tir | r >= 1 and i1 < i2 < ... < ir }
-```
+- at least one token of every **mandatory** group,
+- zero or more tokens of the **optional** group,
+- the tokens in the canonical order of the groups (guaranteed by stage 2).
 
-For example, for `G = (PANDAS, NUMPY)`:
-
-```text
-S(G) = { PANDAS, NUMPY, PANDAS NUMPY }
-```
-
-The accepted pattern language of a profile is:
-
-```text
-L(profile) = X1 X2 ... Xk
-
-where  Xi = S(Gi)          if Gi is mandatory
-       Xi = S(Gi) ∪ {ε}    if Gi is optional
-```
-
-Each `S(G)` is finite, so `L(profile)` is a concatenation of finite languages and therefore a **regular language**. This justifies the use of a finite automaton. The regular expression of each profile is given with its automaton in Section 6.
+The four profiles end with the group *Version control* (`GIT`), and every automaton has the accepting state `q6`, reached only after reading `GIT`.
 
 ---
 
-## 5. General Construction of the Profile Automata
+## 5. Automata
 
-Let `t1, t2, ..., tn` be the tokens of the profile in canonical order, and let `g(i)` be the number of the group of `ti` (`g(0) = 0` for the initial state). The automaton of the profile is:
-
-```text
-A = (Q, Σ, δ, q0, F)
-
-Q  = { q0 } ∪ { qi | 1 <= i <= n }
-     qi means "the last token read was ti"
-Σ  = { t1, t2, ..., tn }
-q0 = initial state (nothing has been read)
-
-δ(qi, tj) = qj   if  j > i
-                 and every group Gh with g(i) < h < g(j) is optional
-δ(qi, tj) is not defined in any other case   (→ q_trap)
-
-F  = { qi | every group Gh with h > g(i) is optional }
-```
-
-Interpretation of the rules:
-
-- **`j > i`**: the tokens must appear in the canonical order and without repetition. Two tokens of the same group can be read one after the other (`PANDAS` then `NUMPY`).
-- **No mandatory group can be skipped**: from the last token of a group, the automaton can jump to a later group only if every group between them is optional.
-- **Accepting states**: the run can end only after the last mandatory group of the profile has been read.
-
-Properties of the construction:
-
-- `|Q| = n + 1` (one state per token plus the initial state).
-- Since every transition with symbol `tj` goes to `qj`, the automaton is deterministic.
-- Every `qi` is reachable and can reach an accepting state, and the minimization of each automaton with `pyformlang` (`minimize()`) produces an automaton with the same number of states, so the four automata are **minimal DFAs**.
-
----
-
-## 6. Automata
-
-### 6.1 Full Stack Developer — `A_FS`
+### 5.1 Full Stack Developer — `A_FS`
 
 #### Profile pattern
 
-| Group | Tokens | Requirement | States |
-| :--- | :--- | :---: | :--- |
-| G1 Frontend language | `JAVASCRIPT`, `TYPESCRIPT` | Mandatory | `q1`, `q2` |
-| G2 Frontend framework | `REACT`, `ANGULAR`, `VUE` | Mandatory | `q3`, `q4`, `q5` |
-| G3 Backend | `NODE_JS`, `DJANGO`, `SPRING_BOOT` | Mandatory | `q6`, `q7`, `q8` |
-| G4 API | `REST_API` | Optional | `q9` |
-| G5 Database | `SQL`, `POSTGRESQL`, `NOSQL` | Mandatory | `q10`, `q11`, `q12` |
-| G6 Version control | `GIT` | Mandatory | `q13` |
+A candidate satisfies the Full Stack Developer pattern if the résumé shows the complete stack of a web application: at least one frontend language, one frontend framework, one backend technology, one database, and Git. REST APIs are valued but not required, because many résumés do not mention them explicitly.
 
-**Pattern represented.** A Full Stack Developer must cover both sides of a web application. The automaton accepts a sequence only if it contains, in this order: at least one frontend language (`JAVASCRIPT` or `TYPESCRIPT`), at least one frontend framework (`REACT`, `ANGULAR` or `VUE`), at least one backend technology (`NODE_JS`, `DJANGO` or `SPRING_BOOT`), optionally `REST_API`, at least one database (`SQL`, `POSTGRESQL` or `NOSQL`), and `GIT`.
+| Order | Group | Tokens | Required |
+| :---: | :--- | :--- | :---: |
+| 1 | Frontend language | `JAVASCRIPT`, `TYPESCRIPT` | mandatory |
+| 2 | Frontend framework | `REACT`, `ANGULAR`, `VUE` | mandatory |
+| 3 | Backend | `NODE_JS`, `DJANGO`, `SPRING_BOOT` | mandatory |
+| 4 | API | `REST_API` | optional |
+| 5 | Database | `SQL`, `POSTGRESQL`, `NOSQL` | mandatory |
+| 6 | Version control | `GIT` | mandatory |
 
-`REST_API` is optional because it is rarely written as a separate skill: a candidate who has a frontend framework and a backend technology usually builds APIs, and the example of the project statement (Wednesday Addams) does not mention it.
-
-In terms of Section 4:
+Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
 
 ```text
-L(A_FS) = S(G1) S(G2) S(G3) (S(G4) ∪ {ε}) S(G5) S(G6)
+L(A_FS) = (JAVASCRIPT | TYPESCRIPT)⁺ · (REACT | ANGULAR | VUE)⁺ · (NODE_JS | DJANGO | SPRING_BOOT)⁺ · (REST_API)? · (SQL | POSTGRESQL | NOSQL)⁺ · GIT
 ```
 
 #### Formal definition
@@ -209,217 +180,81 @@ L(A_FS) = S(G1) S(G2) S(G3) (S(G4) ∪ {ε}) S(G5) S(G6)
 ```text
 A_FS = (Q, Σ, δ, q0, F)
 
-Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13 }
-     |Q| = 14
+Q  = { q0, q1, q2, q3, q4, q5, q6 }
 Σ  = { JAVASCRIPT, TYPESCRIPT, REACT, ANGULAR, VUE, NODE_JS, DJANGO, SPRING_BOOT, REST_API, SQL, POSTGRESQL, NOSQL, GIT }
      |Σ| = 13
+δ  : Q × Σ → Q   (partial function, 27 transitions, table below)
 q0 = q0
-F  = { q13 }
-δ  : Q × Σ → Q  (partial function, 45 transitions;
-     the missing pairs go to the trap state)
+F  = { q6 }
 ```
 
-#### States
+| State | Meaning |
+| :--- | :--- |
+| `q0` | Initial state: nothing has been read |
+| `q1` | At least one token of the group *Frontend language* has been read |
+| `q2` | At least one token of the group *Frontend framework* has been read |
+| `q3` | At least one token of the group *Backend* has been read |
+| `q4` | At least one token of the group *API* has been read |
+| `q5` | At least one token of the group *Database* has been read |
+| `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-| State | Meaning (last token read) | Group | Accepting |
-| :--- | :--- | :--- | :---: |
-| `q0` | nothing has been read | — | no |
-| `q1` | `JAVASCRIPT` | G1 Frontend language (M) | no |
-| `q2` | `TYPESCRIPT` | G1 Frontend language (M) | no |
-| `q3` | `REACT` | G2 Frontend framework (M) | no |
-| `q4` | `ANGULAR` | G2 Frontend framework (M) | no |
-| `q5` | `VUE` | G2 Frontend framework (M) | no |
-| `q6` | `NODE_JS` | G3 Backend (M) | no |
-| `q7` | `DJANGO` | G3 Backend (M) | no |
-| `q8` | `SPRING_BOOT` | G3 Backend (M) | no |
-| `q9` | `REST_API` | G4 API (O) | no |
-| `q10` | `SQL` | G5 Database (M) | no |
-| `q11` | `POSTGRESQL` | G5 Database (M) | no |
-| `q12` | `NOSQL` | G5 Database (M) | no |
-| `q13` | `GIT` | G6 Version control (M) | yes |
+**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
 
-#### Transition function δ
+| From | Tokens | To | Meaning |
+| :--- | :--- | :--- | :--- |
+| `q0` | `JAVASCRIPT` \| `TYPESCRIPT` | `q1` | group 1 (Frontend language) |
+| `q1` | `JAVASCRIPT` \| `TYPESCRIPT` | `q1` | loop: more tokens of the same group |
+| `q1` | `REACT` \| `ANGULAR` \| `VUE` | `q2` | group 2 (Frontend framework) |
+| `q2` | `REACT` \| `ANGULAR` \| `VUE` | `q2` | loop: more tokens of the same group |
+| `q2` | `NODE_JS` \| `DJANGO` \| `SPRING_BOOT` | `q3` | group 3 (Backend) |
+| `q3` | `NODE_JS` \| `DJANGO` \| `SPRING_BOOT` | `q3` | loop: more tokens of the same group |
+| `q3` | `REST_API` | `q4` | group 4 (API) |
+| `q4` | `SQL` \| `POSTGRESQL` \| `NOSQL` | `q5` | group 5 (Database) |
+| `q3` | `SQL` \| `POSTGRESQL` \| `NOSQL` | `q5` | skips the optional group 4 (API) |
+| `q5` | `SQL` \| `POSTGRESQL` \| `NOSQL` | `q5` | loop: more tokens of the same group |
+| `q5` | `GIT` | `q6` | group 6 (Version control) |
 
-| From | Input | To |
-| :--- | :--- | :--- |
-| `q0` | `JAVASCRIPT` | `q1` |
-| `q0` | `TYPESCRIPT` | `q2` |
-| `q1` | `TYPESCRIPT` | `q2` |
-| `q1` | `REACT` | `q3` |
-| `q1` | `ANGULAR` | `q4` |
-| `q1` | `VUE` | `q5` |
-| `q2` | `REACT` | `q3` |
-| `q2` | `ANGULAR` | `q4` |
-| `q2` | `VUE` | `q5` |
-| `q3` | `ANGULAR` | `q4` |
-| `q3` | `VUE` | `q5` |
-| `q3` | `NODE_JS` | `q6` |
-| `q3` | `DJANGO` | `q7` |
-| `q3` | `SPRING_BOOT` | `q8` |
-| `q4` | `VUE` | `q5` |
-| `q4` | `NODE_JS` | `q6` |
-| `q4` | `DJANGO` | `q7` |
-| `q4` | `SPRING_BOOT` | `q8` |
-| `q5` | `NODE_JS` | `q6` |
-| `q5` | `DJANGO` | `q7` |
-| `q5` | `SPRING_BOOT` | `q8` |
-| `q6` | `DJANGO` | `q7` |
-| `q6` | `SPRING_BOOT` | `q8` |
-| `q6` | `REST_API` | `q9` |
-| `q6` | `SQL` | `q10` |
-| `q6` | `POSTGRESQL` | `q11` |
-| `q6` | `NOSQL` | `q12` |
-| `q7` | `SPRING_BOOT` | `q8` |
-| `q7` | `REST_API` | `q9` |
-| `q7` | `SQL` | `q10` |
-| `q7` | `POSTGRESQL` | `q11` |
-| `q7` | `NOSQL` | `q12` |
-| `q8` | `REST_API` | `q9` |
-| `q8` | `SQL` | `q10` |
-| `q8` | `POSTGRESQL` | `q11` |
-| `q8` | `NOSQL` | `q12` |
-| `q9` | `SQL` | `q10` |
-| `q9` | `POSTGRESQL` | `q11` |
-| `q9` | `NOSQL` | `q12` |
-| `q10` | `POSTGRESQL` | `q11` |
-| `q10` | `NOSQL` | `q12` |
-| `q10` | `GIT` | `q13` |
-| `q11` | `NOSQL` | `q12` |
-| `q11` | `GIT` | `q13` |
-| `q12` | `GIT` | `q13` |
-
-#### Transition matrix
-
-Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
-
-| δ | `JAVASCRIPT` | `TYPESCRIPT` | `REACT` | `ANGULAR` | `VUE` | `NODE_JS` | `DJANGO` | `SPRING_BOOT` | `REST_API` | `SQL` | `POSTGRESQL` | `NOSQL` | `GIT` |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| →`q0` | q1 | q2 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q1` | ∅ | q2 | q3 | q4 | q5 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q2` | ∅ | ∅ | q3 | q4 | q5 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q3` | ∅ | ∅ | ∅ | q4 | q5 | q6 | q7 | q8 | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | q8 | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | q11 | q12 | ∅ |
-| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | q11 | q12 | ∅ |
-| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | q11 | q12 | ∅ |
-| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 | q12 | ∅ |
-| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 | q12 | q13 |
-| `q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q12 | q13 |
-| `q12` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q13 |
-| *`q13` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-
-#### Regular expression of the recognized language
-
-```text
-L(A_FS) = (JAVASCRIPT TYPESCRIPT? | TYPESCRIPT)
-    (REACT ANGULAR? VUE? | ANGULAR VUE? | VUE)
-    (NODE_JS DJANGO? SPRING_BOOT? | DJANGO SPRING_BOOT? | SPRING_BOOT)
-    (REST_API)?
-    (SQL POSTGRESQL? NOSQL? | POSTGRESQL NOSQL? | NOSQL)
-    GIT
-```
+Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
 
 #### Type of automaton
 
-`A_FS` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 14 states and 45 transitions, and it is minimal (`minimize()` keeps 14 states).
+`A_FS` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q3` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
-Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_fs.svg` (source `diagrams/dfa/a_fs.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+![A_FS](../diagrams/automata/a_fs.svg)
 
-![A_FS](../diagrams/dfa/a_fs.svg)
-
-Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
-
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    G1["G1 Frontend language<br/>JAVASCRIPT / TYPESCRIPT"]
-    G2["G2 Frontend framework<br/>REACT / ANGULAR / VUE"]
-    G3["G3 Backend<br/>NODE_JS / DJANGO / SPRING_BOOT"]
-    G4{{"G4 API<br/>REST_API<br/>(optional)"}}
-    G5["G5 Database<br/>SQL / POSTGRESQL / NOSQL"]
-    G6["G6 Version control<br/>GIT"]
-    q0 --> G1
-    G1 --> G2
-    G2 --> G3
-    G3 --> G4
-    G4 --> G5
-    G5 --> G6
-    G3 -.-> G5
-    G6 --> accept(((ACCEPTED)))
-```
+File: `diagrams/automata/a_fs.svg` (source: `diagrams/automata/a_fs.dot`).
 
 #### Examples
 
-**Accepted — example of the statement (Wednesday Addams)**
-
-```text
-Sequence: JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
-Run:      q0 --JAVASCRIPT--> q1 --REACT--> q3 --NODE_JS--> q6 --POSTGRESQL--> q11 --GIT--> q13
-Result:   ACCEPTED  (q13 ∈ F)
-```
-
-**Accepted — several tokens per group and the optional group present**
-
-```text
-Sequence: TYPESCRIPT, ANGULAR, VUE, SPRING_BOOT, REST_API, SQL, NOSQL, GIT
-Run:      q0 --TYPESCRIPT--> q2 --ANGULAR--> q4 --VUE--> q5 --SPRING_BOOT--> q8 --REST_API--> q9 --SQL--> q10 --NOSQL--> q12 --GIT--> q13
-Result:   ACCEPTED  (q13 ∈ F)
-```
-
-**Rejected — the mandatory group Backend is missing**
-
-```text
-Sequence: JAVASCRIPT, REACT, POSTGRESQL, GIT
-Run:      q0 --JAVASCRIPT--> q1 --REACT--> q3 --POSTGRESQL--> q_trap
-Result:   REJECTED  (δ(q3, POSTGRESQL) is not defined → q_trap)
-Missing mandatory groups: Backend
-```
-
-**Rejected — the run ends before version control**
-
-```text
-Sequence: JAVASCRIPT, REACT, NODE_JS, POSTGRESQL
-Run:      q0 --JAVASCRIPT--> q1 --REACT--> q3 --NODE_JS--> q6 --POSTGRESQL--> q11
-Result:   REJECTED  (q11 ∉ F)
-Missing mandatory groups: Version control
-```
-
-**Rejected — empty sequence (no Full Stack qualifications)**
-
-```text
-Sequence: ε
-Run:      q0
-Result:   REJECTED  (q0 ∉ F)
-Missing mandatory groups: Frontend language, Frontend framework, Backend, Database, Version control
-```
+| Case | Sequence (from stage 2) | Run | Output |
+| :--- | :--- | :--- | :---: |
+| Wednesday Addams (statement) | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT` | `q0 --JAVASCRIPT--> q1 --REACT--> q2 --NODE_JS--> q3 --POSTGRESQL--> q5 --GIT--> q6` | **ACCEPTED** |
+| With the optional API and two languages | `JAVASCRIPT, TYPESCRIPT, ANGULAR, SPRING_BOOT, REST_API, SQL, GIT` | `q0 --JAVASCRIPT--> q1 --TYPESCRIPT--> q1 --ANGULAR--> q2 --SPRING_BOOT--> q3 --REST_API--> q4 --SQL--> q5 --GIT--> q6` | **ACCEPTED** |
+| Without backend | `JAVASCRIPT, REACT, POSTGRESQL, GIT` | `q0 --JAVASCRIPT--> q1 --REACT--> q2 --POSTGRESQL--> (no transition)` | **REJECTED** |
+| Without Git | `TYPESCRIPT, VUE, DJANGO, NOSQL` | `q0 --TYPESCRIPT--> q1 --VUE--> q2 --DJANGO--> q3 --NOSQL--> q5 (ends in q5 ∉ F)` | **REJECTED** |
 
 
-### 6.2 Machine Learning Engineer — `A_ML`
+### 5.2 Machine Learning Engineer — `A_ML`
 
 #### Profile pattern
 
-| Group | Tokens | Requirement | States |
-| :--- | :--- | :---: | :--- |
-| G1 Language | `PYTHON` | Mandatory | `q1` |
-| G2 Data libraries | `PANDAS`, `NUMPY` | Mandatory | `q2`, `q3` |
-| G3 ML libraries | `SCIKIT_LEARN`, `TENSORFLOW`, `PYTORCH` | Mandatory | `q4`, `q5`, `q6` |
-| G4 ML development | `MACHINE_LEARNING`, `ML_MODEL_DEVELOPMENT` | Optional | `q7`, `q8` |
-| G5 Database | `SQL`, `POSTGRESQL` | Mandatory | `q9`, `q10` |
-| G6 Version control | `GIT` | Mandatory | `q11` |
+A candidate satisfies the Machine Learning Engineer pattern if the résumé shows Python, at least one data library (Pandas or NumPy), at least one machine-learning library (Scikit-learn, TensorFlow, or PyTorch), SQL or PostgreSQL, and Git. Mentioning machine-learning model development explicitly is optional, because the ML libraries already show it. This is the automaton of the example of the project statement.
 
-**Pattern represented.** A Machine Learning Engineer combines programming, data processing and machine-learning libraries. The automaton accepts a sequence only if it contains, in this order: `PYTHON`, at least one data library (`PANDAS` or `NUMPY`), at least one machine-learning library (`SCIKIT_LEARN`, `TENSORFLOW` or `PYTORCH`), optionally an explicit machine-learning qualification (`MACHINE_LEARNING` or `ML_MODEL_DEVELOPMENT`), at least one database (`SQL` or `POSTGRESQL`), and `GIT`.
+| Order | Group | Tokens | Required |
+| :---: | :--- | :--- | :---: |
+| 1 | Language | `PYTHON` | mandatory |
+| 2 | Data libraries | `PANDAS`, `NUMPY` | mandatory |
+| 3 | ML libraries | `SCIKIT_LEARN`, `TENSORFLOW`, `PYTORCH` | mandatory |
+| 4 | ML development | `MACHINE_LEARNING`, `ML_MODEL_DEVELOPMENT` | optional |
+| 5 | Database | `SQL`, `POSTGRESQL` | mandatory |
+| 6 | Version control | `GIT` | mandatory |
 
-**Alphabet of ML skills.** `Σ(A_ML)` contains the 11 canonical tokens of the profile. The tokens of the ML development group come from phrases (for example `Machine-learning model development`) normalized by `M_OTHER`; the other tokens come from `M_LANG`, `M_FW`, `M_DB` and `M_TOOLS`. Tokens of other profiles (for example `REACT`) are not in `Σ(A_ML)`: they are removed by `sort_for_profile` before the automaton runs.
-
-The ML development group is optional because it is usually described with free text (for example *developing predictive models*, as in the résumé of Mary Jane Watson) that is not a fixed qualification; the use of an ML library is already a mandatory evidence of the profile. This decision makes the example of the project statement (`PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT`) accepted.
-
-In terms of Section 4:
+Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
 
 ```text
-L(A_ML) = S(G1) S(G2) S(G3) (S(G4) ∪ {ε}) S(G5) S(G6)
+L(A_ML) = PYTHON · (PANDAS | NUMPY)⁺ · (SCIKIT_LEARN | TENSORFLOW | PYTORCH)⁺ · (MACHINE_LEARNING | ML_MODEL_DEVELOPMENT)* · (SQL | POSTGRESQL)⁺ · GIT
 ```
 
 #### Formal definition
@@ -427,198 +262,81 @@ L(A_ML) = S(G1) S(G2) S(G3) (S(G4) ∪ {ε}) S(G5) S(G6)
 ```text
 A_ML = (Q, Σ, δ, q0, F)
 
-Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11 }
-     |Q| = 12
+Q  = { q0, q1, q2, q3, q4, q5, q6 }
 Σ  = { PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, PYTORCH, MACHINE_LEARNING, ML_MODEL_DEVELOPMENT, SQL, POSTGRESQL, GIT }
      |Σ| = 11
+δ  : Q × Σ → Q   (partial function, 22 transitions, table below)
 q0 = q0
-F  = { q11 }
-δ  : Q × Σ → Q  (partial function, 33 transitions;
-     the missing pairs go to the trap state)
+F  = { q6 }
 ```
 
-#### States
+| State | Meaning |
+| :--- | :--- |
+| `q0` | Initial state: nothing has been read |
+| `q1` | At least one token of the group *Language* has been read |
+| `q2` | At least one token of the group *Data libraries* has been read |
+| `q3` | At least one token of the group *ML libraries* has been read |
+| `q4` | At least one token of the group *ML development* has been read |
+| `q5` | At least one token of the group *Database* has been read |
+| `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-| State | Meaning (last token read) | Group | Accepting |
-| :--- | :--- | :--- | :---: |
-| `q0` | nothing has been read | — | no |
-| `q1` | `PYTHON` | G1 Language (M) | no |
-| `q2` | `PANDAS` | G2 Data libraries (M) | no |
-| `q3` | `NUMPY` | G2 Data libraries (M) | no |
-| `q4` | `SCIKIT_LEARN` | G3 ML libraries (M) | no |
-| `q5` | `TENSORFLOW` | G3 ML libraries (M) | no |
-| `q6` | `PYTORCH` | G3 ML libraries (M) | no |
-| `q7` | `MACHINE_LEARNING` | G4 ML development (O) | no |
-| `q8` | `ML_MODEL_DEVELOPMENT` | G4 ML development (O) | no |
-| `q9` | `SQL` | G5 Database (M) | no |
-| `q10` | `POSTGRESQL` | G5 Database (M) | no |
-| `q11` | `GIT` | G6 Version control (M) | yes |
+**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
 
-#### Transition function δ
+| From | Tokens | To | Meaning |
+| :--- | :--- | :--- | :--- |
+| `q0` | `PYTHON` | `q1` | group 1 (Language) |
+| `q1` | `PANDAS` \| `NUMPY` | `q2` | group 2 (Data libraries) |
+| `q2` | `PANDAS` \| `NUMPY` | `q2` | loop: more tokens of the same group |
+| `q2` | `SCIKIT_LEARN` \| `TENSORFLOW` \| `PYTORCH` | `q3` | group 3 (ML libraries) |
+| `q3` | `SCIKIT_LEARN` \| `TENSORFLOW` \| `PYTORCH` | `q3` | loop: more tokens of the same group |
+| `q3` | `MACHINE_LEARNING` \| `ML_MODEL_DEVELOPMENT` | `q4` | group 4 (ML development) |
+| `q4` | `MACHINE_LEARNING` \| `ML_MODEL_DEVELOPMENT` | `q4` | loop: more tokens of the same group |
+| `q4` | `SQL` \| `POSTGRESQL` | `q5` | group 5 (Database) |
+| `q3` | `SQL` \| `POSTGRESQL` | `q5` | skips the optional group 4 (ML development) |
+| `q5` | `SQL` \| `POSTGRESQL` | `q5` | loop: more tokens of the same group |
+| `q5` | `GIT` | `q6` | group 6 (Version control) |
 
-| From | Input | To |
-| :--- | :--- | :--- |
-| `q0` | `PYTHON` | `q1` |
-| `q1` | `PANDAS` | `q2` |
-| `q1` | `NUMPY` | `q3` |
-| `q2` | `NUMPY` | `q3` |
-| `q2` | `SCIKIT_LEARN` | `q4` |
-| `q2` | `TENSORFLOW` | `q5` |
-| `q2` | `PYTORCH` | `q6` |
-| `q3` | `SCIKIT_LEARN` | `q4` |
-| `q3` | `TENSORFLOW` | `q5` |
-| `q3` | `PYTORCH` | `q6` |
-| `q4` | `TENSORFLOW` | `q5` |
-| `q4` | `PYTORCH` | `q6` |
-| `q4` | `MACHINE_LEARNING` | `q7` |
-| `q4` | `ML_MODEL_DEVELOPMENT` | `q8` |
-| `q4` | `SQL` | `q9` |
-| `q4` | `POSTGRESQL` | `q10` |
-| `q5` | `PYTORCH` | `q6` |
-| `q5` | `MACHINE_LEARNING` | `q7` |
-| `q5` | `ML_MODEL_DEVELOPMENT` | `q8` |
-| `q5` | `SQL` | `q9` |
-| `q5` | `POSTGRESQL` | `q10` |
-| `q6` | `MACHINE_LEARNING` | `q7` |
-| `q6` | `ML_MODEL_DEVELOPMENT` | `q8` |
-| `q6` | `SQL` | `q9` |
-| `q6` | `POSTGRESQL` | `q10` |
-| `q7` | `ML_MODEL_DEVELOPMENT` | `q8` |
-| `q7` | `SQL` | `q9` |
-| `q7` | `POSTGRESQL` | `q10` |
-| `q8` | `SQL` | `q9` |
-| `q8` | `POSTGRESQL` | `q10` |
-| `q9` | `POSTGRESQL` | `q10` |
-| `q9` | `GIT` | `q11` |
-| `q10` | `GIT` | `q11` |
-
-#### Transition matrix
-
-Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
-
-| δ | `PYTHON` | `PANDAS` | `NUMPY` | `SCIKIT_LEARN` | `TENSORFLOW` | `PYTORCH` | `MACHINE_LEARNING` | `ML_MODEL_DEVELOPMENT` | `SQL` | `POSTGRESQL` | `GIT` |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| →`q0` | q1 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q1` | ∅ | q2 | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q2` | ∅ | ∅ | q3 | q4 | q5 | q6 | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q3` | ∅ | ∅ | ∅ | q4 | q5 | q6 | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | q8 | q9 | q10 | ∅ |
-| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | q9 | q10 | ∅ |
-| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | ∅ |
-| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | ∅ |
-| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | ∅ |
-| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 |
-| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 |
-| *`q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-
-#### Regular expression of the recognized language
-
-```text
-L(A_ML) = PYTHON
-    (PANDAS NUMPY? | NUMPY)
-    (SCIKIT_LEARN TENSORFLOW? PYTORCH? | TENSORFLOW PYTORCH? | PYTORCH)
-    ((MACHINE_LEARNING ML_MODEL_DEVELOPMENT? | ML_MODEL_DEVELOPMENT))?
-    (SQL POSTGRESQL? | POSTGRESQL)
-    GIT
-```
+Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
 
 #### Type of automaton
 
-`A_ML` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 12 states and 33 transitions, and it is minimal (`minimize()` keeps 12 states).
+`A_ML` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q3` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
-Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_ml.svg` (source `diagrams/dfa/a_ml.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+![A_ML](../diagrams/automata/a_ml.svg)
 
-![A_ML](../diagrams/dfa/a_ml.svg)
-
-Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
-
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    G1["G1 Language<br/>PYTHON"]
-    G2["G2 Data libraries<br/>PANDAS / NUMPY"]
-    G3["G3 ML libraries<br/>SCIKIT_LEARN / TENSORFLOW / PYTORCH"]
-    G4{{"G4 ML development<br/>MACHINE_LEARNING / ML_MODEL_DEVELOPMENT<br/>(optional)"}}
-    G5["G5 Database<br/>SQL / POSTGRESQL"]
-    G6["G6 Version control<br/>GIT"]
-    q0 --> G1
-    G1 --> G2
-    G2 --> G3
-    G3 --> G4
-    G4 --> G5
-    G5 --> G6
-    G3 -.-> G5
-    G6 --> accept(((ACCEPTED)))
-```
+File: `diagrams/automata/a_ml.svg` (source: `diagrams/automata/a_ml.dot`).
 
 #### Examples
 
-**Accepted — example of Stage 3 of the statement**
-
-```text
-Sequence: PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT
-Run:      q0 --PYTHON--> q1 --PANDAS--> q2 --TENSORFLOW--> q5 --POSTGRESQL--> q10 --GIT--> q11
-Result:   ACCEPTED  (q11 ∈ F)
-```
-
-**Accepted — résumé of Mary Jane Watson**
-
-```text
-Sequence: PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, SQL, GIT
-Run:      q0 --PYTHON--> q1 --PANDAS--> q2 --NUMPY--> q3 --SCIKIT_LEARN--> q4 --TENSORFLOW--> q5 --SQL--> q9 --GIT--> q11
-Result:   ACCEPTED  (q11 ∈ F)
-```
-
-**Accepted — the optional group ML development is present**
-
-```text
-Sequence: PYTHON, NUMPY, PYTORCH, ML_MODEL_DEVELOPMENT, SQL, GIT
-Run:      q0 --PYTHON--> q1 --NUMPY--> q3 --PYTORCH--> q6 --ML_MODEL_DEVELOPMENT--> q8 --SQL--> q9 --GIT--> q11
-Result:   ACCEPTED  (q11 ∈ F)
-```
-
-**Rejected — no machine-learning library**
-
-```text
-Sequence: PYTHON, PANDAS, NUMPY, SQL, GIT
-Run:      q0 --PYTHON--> q1 --PANDAS--> q2 --NUMPY--> q3 --SQL--> q_trap
-Result:   REJECTED  (δ(q3, SQL) is not defined → q_trap)
-Missing mandatory groups: ML libraries
-```
-
-**Rejected — PYTHON is missing**
-
-```text
-Sequence: PANDAS, SCIKIT_LEARN, SQL, GIT
-Run:      q0 --PANDAS--> q_trap
-Result:   REJECTED  (δ(q0, PANDAS) is not defined → q_trap)
-Missing mandatory groups: Language
-```
+| Case | Sequence (from stage 2) | Run | Output |
+| :--- | :--- | :--- | :---: |
+| Example of the statement (guide) | `PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT` | `q0 --PYTHON--> q1 --PANDAS--> q2 --TENSORFLOW--> q3 --POSTGRESQL--> q5 --GIT--> q6` | **ACCEPTED** |
+| Mary Jane Watson (statement) | `PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, SQL, GIT` | `q0 --PYTHON--> q1 --PANDAS--> q2 --NUMPY--> q2 --SCIKIT_LEARN--> q3 --TENSORFLOW--> q3 --SQL--> q5 --GIT--> q6` | **ACCEPTED** |
+| Without ML library | `PYTHON, PANDAS, SQL, GIT` | `q0 --PYTHON--> q1 --PANDAS--> q2 --SQL--> (no transition)` | **REJECTED** |
+| Without Python | `NUMPY, PYTORCH, SQL, GIT` | `q0 --NUMPY--> (no transition)` | **REJECTED** |
 
 
-### 6.3 Cybersecurity Engineer — `A_SEC`
+### 5.3 Cybersecurity Engineer — `A_SEC`
 
 #### Profile pattern
 
-| Group | Tokens | Requirement | States |
-| :--- | :--- | :---: | :--- |
-| G1 Scripting | `PYTHON`, `BASH` | Mandatory | `q1`, `q2` |
-| G2 Operating system | `LINUX` | Mandatory | `q3` |
-| G3 Networking | `NETWORKING`, `TCP_IP` | Mandatory | `q4`, `q5` |
-| G4 Security | `CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT`, `SECURITY_AUTOMATION` | Mandatory | `q6`, `q7`, `q8`, `q9` |
-| G5 Containers | `DOCKER`, `KUBERNETES` | Optional | `q10`, `q11` |
-| G6 Version control | `GIT` | Mandatory | `q12` |
+A candidate satisfies the Cybersecurity Engineer pattern if the résumé shows a scripting language (Python or Bash), Linux, networking knowledge (networking or TCP/IP), at least one security qualification or tool, and Git. Containers (Docker or Kubernetes) are optional.
 
-**Pattern represented.** A Cybersecurity Engineer protects systems and networks, so the automaton accepts a sequence only if it contains, in this order: at least one scripting language (`PYTHON` or `BASH`), `LINUX`, at least one networking qualification (`NETWORKING` or `TCP_IP`), at least one security qualification (`CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT` or `SECURITY_AUTOMATION`), optionally a container technology (`DOCKER` or `KUBERNETES`), and `GIT`.
+| Order | Group | Tokens | Required |
+| :---: | :--- | :--- | :---: |
+| 1 | Scripting | `PYTHON`, `BASH` | mandatory |
+| 2 | Operating system | `LINUX` | mandatory |
+| 3 | Networking | `NETWORKING`, `TCP_IP` | mandatory |
+| 4 | Security | `CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT`, `SECURITY_AUTOMATION` | mandatory |
+| 5 | Containers | `DOCKER`, `KUBERNETES` | optional |
+| 6 | Version control | `GIT` | mandatory |
 
-The Containers group is optional because containers are useful for security automation and infrastructure, but they do not identify the profile; the Security group is the one that distinguishes this profile from the others and it is mandatory.
-
-In terms of Section 4:
+Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
 
 ```text
-L(A_SEC) = S(G1) S(G2) S(G3) S(G4) (S(G5) ∪ {ε}) S(G6)
+L(A_SEC) = (PYTHON | BASH)⁺ · LINUX · (NETWORKING | TCP_IP)⁺ · (CYBERSECURITY | NMAP | VULNERABILITY_ASSESSMENT | SECURITY_AUTOMATION)⁺ · (DOCKER | KUBERNETES)* · GIT
 ```
 
 #### Formal definition
@@ -626,195 +344,81 @@ L(A_SEC) = S(G1) S(G2) S(G3) S(G4) (S(G5) ∪ {ε}) S(G6)
 ```text
 A_SEC = (Q, Σ, δ, q0, F)
 
-Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12 }
-     |Q| = 13
+Q  = { q0, q1, q2, q3, q4, q5, q6 }
 Σ  = { PYTHON, BASH, LINUX, NETWORKING, TCP_IP, CYBERSECURITY, NMAP, VULNERABILITY_ASSESSMENT, SECURITY_AUTOMATION, DOCKER, KUBERNETES, GIT }
      |Σ| = 12
+δ  : Q × Σ → Q   (partial function, 23 transitions, table below)
 q0 = q0
-F  = { q12 }
-δ  : Q × Σ → Q  (partial function, 37 transitions;
-     the missing pairs go to the trap state)
+F  = { q6 }
 ```
 
-#### States
+| State | Meaning |
+| :--- | :--- |
+| `q0` | Initial state: nothing has been read |
+| `q1` | At least one token of the group *Scripting* has been read |
+| `q2` | At least one token of the group *Operating system* has been read |
+| `q3` | At least one token of the group *Networking* has been read |
+| `q4` | At least one token of the group *Security* has been read |
+| `q5` | At least one token of the group *Containers* has been read |
+| `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-| State | Meaning (last token read) | Group | Accepting |
-| :--- | :--- | :--- | :---: |
-| `q0` | nothing has been read | — | no |
-| `q1` | `PYTHON` | G1 Scripting (M) | no |
-| `q2` | `BASH` | G1 Scripting (M) | no |
-| `q3` | `LINUX` | G2 Operating system (M) | no |
-| `q4` | `NETWORKING` | G3 Networking (M) | no |
-| `q5` | `TCP_IP` | G3 Networking (M) | no |
-| `q6` | `CYBERSECURITY` | G4 Security (M) | no |
-| `q7` | `NMAP` | G4 Security (M) | no |
-| `q8` | `VULNERABILITY_ASSESSMENT` | G4 Security (M) | no |
-| `q9` | `SECURITY_AUTOMATION` | G4 Security (M) | no |
-| `q10` | `DOCKER` | G5 Containers (O) | no |
-| `q11` | `KUBERNETES` | G5 Containers (O) | no |
-| `q12` | `GIT` | G6 Version control (M) | yes |
+**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
 
-#### Transition function δ
+| From | Tokens | To | Meaning |
+| :--- | :--- | :--- | :--- |
+| `q0` | `PYTHON` \| `BASH` | `q1` | group 1 (Scripting) |
+| `q1` | `PYTHON` \| `BASH` | `q1` | loop: more tokens of the same group |
+| `q1` | `LINUX` | `q2` | group 2 (Operating system) |
+| `q2` | `NETWORKING` \| `TCP_IP` | `q3` | group 3 (Networking) |
+| `q3` | `NETWORKING` \| `TCP_IP` | `q3` | loop: more tokens of the same group |
+| `q3` | `CYBERSECURITY` \| `NMAP` \| `VULNERABILITY_ASSESSMENT` \| `SECURITY_AUTOMATION` | `q4` | group 4 (Security) |
+| `q4` | `CYBERSECURITY` \| `NMAP` \| `VULNERABILITY_ASSESSMENT` \| `SECURITY_AUTOMATION` | `q4` | loop: more tokens of the same group |
+| `q4` | `DOCKER` \| `KUBERNETES` | `q5` | group 5 (Containers) |
+| `q5` | `DOCKER` \| `KUBERNETES` | `q5` | loop: more tokens of the same group |
+| `q5` | `GIT` | `q6` | group 6 (Version control) |
+| `q4` | `GIT` | `q6` | skips the optional group 5 (Containers) |
 
-| From | Input | To |
-| :--- | :--- | :--- |
-| `q0` | `PYTHON` | `q1` |
-| `q0` | `BASH` | `q2` |
-| `q1` | `BASH` | `q2` |
-| `q1` | `LINUX` | `q3` |
-| `q2` | `LINUX` | `q3` |
-| `q3` | `NETWORKING` | `q4` |
-| `q3` | `TCP_IP` | `q5` |
-| `q4` | `TCP_IP` | `q5` |
-| `q4` | `CYBERSECURITY` | `q6` |
-| `q4` | `NMAP` | `q7` |
-| `q4` | `VULNERABILITY_ASSESSMENT` | `q8` |
-| `q4` | `SECURITY_AUTOMATION` | `q9` |
-| `q5` | `CYBERSECURITY` | `q6` |
-| `q5` | `NMAP` | `q7` |
-| `q5` | `VULNERABILITY_ASSESSMENT` | `q8` |
-| `q5` | `SECURITY_AUTOMATION` | `q9` |
-| `q6` | `NMAP` | `q7` |
-| `q6` | `VULNERABILITY_ASSESSMENT` | `q8` |
-| `q6` | `SECURITY_AUTOMATION` | `q9` |
-| `q6` | `DOCKER` | `q10` |
-| `q6` | `KUBERNETES` | `q11` |
-| `q6` | `GIT` | `q12` |
-| `q7` | `VULNERABILITY_ASSESSMENT` | `q8` |
-| `q7` | `SECURITY_AUTOMATION` | `q9` |
-| `q7` | `DOCKER` | `q10` |
-| `q7` | `KUBERNETES` | `q11` |
-| `q7` | `GIT` | `q12` |
-| `q8` | `SECURITY_AUTOMATION` | `q9` |
-| `q8` | `DOCKER` | `q10` |
-| `q8` | `KUBERNETES` | `q11` |
-| `q8` | `GIT` | `q12` |
-| `q9` | `DOCKER` | `q10` |
-| `q9` | `KUBERNETES` | `q11` |
-| `q9` | `GIT` | `q12` |
-| `q10` | `KUBERNETES` | `q11` |
-| `q10` | `GIT` | `q12` |
-| `q11` | `GIT` | `q12` |
-
-#### Transition matrix
-
-Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
-
-| δ | `PYTHON` | `BASH` | `LINUX` | `NETWORKING` | `TCP_IP` | `CYBERSECURITY` | `NMAP` | `VULNERABILITY_ASSESSMENT` | `SECURITY_AUTOMATION` | `DOCKER` | `KUBERNETES` | `GIT` |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| →`q0` | q1 | q2 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q1` | ∅ | q2 | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q2` | ∅ | ∅ | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q3` | ∅ | ∅ | ∅ | q4 | q5 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | q8 | q9 | ∅ | ∅ | ∅ |
-| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | q9 | ∅ | ∅ | ∅ |
-| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | q11 | q12 |
-| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | q11 | q12 |
-| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | q11 | q12 |
-| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 | q12 |
-| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 | q12 |
-| `q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q12 |
-| *`q12` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-
-#### Regular expression of the recognized language
-
-```text
-L(A_SEC) = (PYTHON BASH? | BASH)
-    LINUX
-    (NETWORKING TCP_IP? | TCP_IP)
-    (CYBERSECURITY NMAP? VULNERABILITY_ASSESSMENT? SECURITY_AUTOMATION? | NMAP VULNERABILITY_ASSESSMENT? SECURITY_AUTOMATION? | VULNERABILITY_ASSESSMENT SECURITY_AUTOMATION? | SECURITY_AUTOMATION)
-    ((DOCKER KUBERNETES? | KUBERNETES))?
-    GIT
-```
+Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
 
 #### Type of automaton
 
-`A_SEC` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 13 states and 37 transitions, and it is minimal (`minimize()` keeps 13 states).
+`A_SEC` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q4` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
-Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_sec.svg` (source `diagrams/dfa/a_sec.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+![A_SEC](../diagrams/automata/a_sec.svg)
 
-![A_SEC](../diagrams/dfa/a_sec.svg)
-
-Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
-
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    G1["G1 Scripting<br/>PYTHON / BASH"]
-    G2["G2 Operating system<br/>LINUX"]
-    G3["G3 Networking<br/>NETWORKING / TCP_IP"]
-    G4["G4 Security<br/>CYBERSECURITY / NMAP / VULNERABILITY_ASSESSMENT / SECURITY_AUTOMATION"]
-    G5{{"G5 Containers<br/>DOCKER / KUBERNETES<br/>(optional)"}}
-    G6["G6 Version control<br/>GIT"]
-    q0 --> G1
-    G1 --> G2
-    G2 --> G3
-    G3 --> G4
-    G4 --> G5
-    G5 --> G6
-    G4 -.-> G6
-    G6 --> accept(((ACCEPTED)))
-```
+File: `diagrams/automata/a_sec.svg` (source: `diagrams/automata/a_sec.dot`).
 
 #### Examples
 
-**Accepted — résumé of Peter Parker**
+| Case | Sequence (from stage 2) | Run | Output |
+| :--- | :--- | :--- | :---: |
+| Peter Parker (profile example) | `PYTHON, LINUX, TCP_IP, NMAP, DOCKER, GIT` | `q0 --PYTHON--> q1 --LINUX--> q2 --TCP_IP--> q3 --NMAP--> q4 --DOCKER--> q5 --GIT--> q6` | **ACCEPTED** |
+| Without containers | `BASH, LINUX, NETWORKING, CYBERSECURITY, VULNERABILITY_ASSESSMENT, GIT` | `q0 --BASH--> q1 --LINUX--> q2 --NETWORKING--> q3 --CYBERSECURITY--> q4 --VULNERABILITY_ASSESSMENT--> q4 --GIT--> q6` | **ACCEPTED** |
+| Without Linux | `PYTHON, TCP_IP, NMAP, GIT` | `q0 --PYTHON--> q1 --TCP_IP--> (no transition)` | **REJECTED** |
+| Without security | `PYTHON, LINUX, NETWORKING, DOCKER, GIT` | `q0 --PYTHON--> q1 --LINUX--> q2 --NETWORKING--> q3 --DOCKER--> (no transition)` | **REJECTED** |
 
-```text
-Sequence: PYTHON, LINUX, TCP_IP, NMAP, DOCKER, GIT
-Run:      q0 --PYTHON--> q1 --LINUX--> q3 --TCP_IP--> q5 --NMAP--> q7 --DOCKER--> q10 --GIT--> q12
-Result:   ACCEPTED  (q12 ∈ F)
-```
 
-**Accepted — without the optional group Containers**
-
-```text
-Sequence: BASH, LINUX, NETWORKING, VULNERABILITY_ASSESSMENT, GIT
-Run:      q0 --BASH--> q2 --LINUX--> q3 --NETWORKING--> q4 --VULNERABILITY_ASSESSMENT--> q8 --GIT--> q12
-Result:   ACCEPTED  (q12 ∈ F)
-```
-
-**Rejected — no networking qualification**
-
-```text
-Sequence: PYTHON, LINUX, NMAP, DOCKER, GIT
-Run:      q0 --PYTHON--> q1 --LINUX--> q3 --NMAP--> q_trap
-Result:   REJECTED  (δ(q3, NMAP) is not defined → q_trap)
-Missing mandatory groups: Networking
-```
-
-**Rejected — no security qualification**
-
-```text
-Sequence: PYTHON, LINUX, TCP_IP, DOCKER, GIT
-Run:      q0 --PYTHON--> q1 --LINUX--> q3 --TCP_IP--> q5 --DOCKER--> q_trap
-Result:   REJECTED  (δ(q5, DOCKER) is not defined → q_trap)
-Missing mandatory groups: Security
-```
-
-### 6.4 Data Engineer — `A_DE`
+### 5.4 Data Engineer — `A_DE`
 
 #### Profile pattern
 
-| Group | Tokens | Requirement | States |
-| :--- | :--- | :---: | :--- |
-| G1 Language | `PYTHON`, `SQL` | Mandatory | `q1`, `q2` |
-| G2 Processing | `SPARK` | Mandatory | `q3` |
-| G3 Orchestration | `AIRFLOW` | Optional | `q4` |
-| G4 Data integration | `ETL`, `ELT`, `DATA_PIPELINE` | Mandatory | `q5`, `q6`, `q7` |
-| G5 Storage | `DATA_WAREHOUSING`, `POSTGRESQL`, `NOSQL` | Mandatory | `q8`, `q9`, `q10` |
-| G6 Version control | `GIT` | Mandatory | `q11` |
+A candidate satisfies the Data Engineer pattern if the résumé shows Python or SQL, Apache Spark, at least one data-integration qualification (ETL, ELT, or data pipelines), at least one storage technology, and Git. Apache Airflow is optional.
 
-**Pattern represented.** A Data Engineer builds and maintains data pipelines. The automaton accepts a sequence only if it contains, in this order: at least one data language (`PYTHON` or `SQL`), `SPARK`, optionally `AIRFLOW`, at least one data-integration qualification (`ETL`, `ELT` or `DATA_PIPELINE`), at least one storage technology (`DATA_WAREHOUSING`, `POSTGRESQL` or `NOSQL`), and `GIT`.
+| Order | Group | Tokens | Required |
+| :---: | :--- | :--- | :---: |
+| 1 | Language | `PYTHON`, `SQL` | mandatory |
+| 2 | Processing | `SPARK` | mandatory |
+| 3 | Orchestration | `AIRFLOW` | optional |
+| 4 | Data integration | `ETL`, `ELT`, `DATA_PIPELINE` | mandatory |
+| 5 | Storage | `DATA_WAREHOUSING`, `POSTGRESQL`, `NOSQL` | mandatory |
+| 6 | Version control | `GIT` | mandatory |
 
-The Orchestration group (`AIRFLOW`) is optional because it is one specific tool and many pipelines are orchestrated with other tools that are not in the vocabulary; the processing engine and the data-integration group are the qualifications that identify the profile.
-
-In terms of Section 4:
+Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
 
 ```text
-L(A_DE) = S(G1) S(G2) (S(G3) ∪ {ε}) S(G4) S(G5) S(G6)
+L(A_DE) = (PYTHON | SQL)⁺ · SPARK · (AIRFLOW)? · (ETL | ELT | DATA_PIPELINE)⁺ · (DATA_WAREHOUSING | POSTGRESQL | NOSQL)⁺ · GIT
 ```
 
 #### Formal definition
@@ -822,339 +426,168 @@ L(A_DE) = S(G1) S(G2) (S(G3) ∪ {ε}) S(G4) S(G5) S(G6)
 ```text
 A_DE = (Q, Σ, δ, q0, F)
 
-Q  = { q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11 }
-     |Q| = 12
+Q  = { q0, q1, q2, q3, q4, q5, q6 }
 Σ  = { PYTHON, SQL, SPARK, AIRFLOW, ETL, ELT, DATA_PIPELINE, DATA_WAREHOUSING, POSTGRESQL, NOSQL, GIT }
      |Σ| = 11
+δ  : Q × Σ → Q   (partial function, 22 transitions, table below)
 q0 = q0
-F  = { q11 }
-δ  : Q × Σ → Q  (partial function, 30 transitions;
-     the missing pairs go to the trap state)
+F  = { q6 }
 ```
 
-#### States
+| State | Meaning |
+| :--- | :--- |
+| `q0` | Initial state: nothing has been read |
+| `q1` | At least one token of the group *Language* has been read |
+| `q2` | At least one token of the group *Processing* has been read |
+| `q3` | At least one token of the group *Orchestration* has been read |
+| `q4` | At least one token of the group *Data integration* has been read |
+| `q5` | At least one token of the group *Storage* has been read |
+| `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-| State | Meaning (last token read) | Group | Accepting |
-| :--- | :--- | :--- | :---: |
-| `q0` | nothing has been read | — | no |
-| `q1` | `PYTHON` | G1 Language (M) | no |
-| `q2` | `SQL` | G1 Language (M) | no |
-| `q3` | `SPARK` | G2 Processing (M) | no |
-| `q4` | `AIRFLOW` | G3 Orchestration (O) | no |
-| `q5` | `ETL` | G4 Data integration (M) | no |
-| `q6` | `ELT` | G4 Data integration (M) | no |
-| `q7` | `DATA_PIPELINE` | G4 Data integration (M) | no |
-| `q8` | `DATA_WAREHOUSING` | G5 Storage (M) | no |
-| `q9` | `POSTGRESQL` | G5 Storage (M) | no |
-| `q10` | `NOSQL` | G5 Storage (M) | no |
-| `q11` | `GIT` | G6 Version control (M) | yes |
+**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
 
-#### Transition function δ
+| From | Tokens | To | Meaning |
+| :--- | :--- | :--- | :--- |
+| `q0` | `PYTHON` \| `SQL` | `q1` | group 1 (Language) |
+| `q1` | `PYTHON` \| `SQL` | `q1` | loop: more tokens of the same group |
+| `q1` | `SPARK` | `q2` | group 2 (Processing) |
+| `q2` | `AIRFLOW` | `q3` | group 3 (Orchestration) |
+| `q3` | `ETL` \| `ELT` \| `DATA_PIPELINE` | `q4` | group 4 (Data integration) |
+| `q2` | `ETL` \| `ELT` \| `DATA_PIPELINE` | `q4` | skips the optional group 3 (Orchestration) |
+| `q4` | `ETL` \| `ELT` \| `DATA_PIPELINE` | `q4` | loop: more tokens of the same group |
+| `q4` | `DATA_WAREHOUSING` \| `POSTGRESQL` \| `NOSQL` | `q5` | group 5 (Storage) |
+| `q5` | `DATA_WAREHOUSING` \| `POSTGRESQL` \| `NOSQL` | `q5` | loop: more tokens of the same group |
+| `q5` | `GIT` | `q6` | group 6 (Version control) |
 
-| From | Input | To |
-| :--- | :--- | :--- |
-| `q0` | `PYTHON` | `q1` |
-| `q0` | `SQL` | `q2` |
-| `q1` | `SQL` | `q2` |
-| `q1` | `SPARK` | `q3` |
-| `q2` | `SPARK` | `q3` |
-| `q3` | `AIRFLOW` | `q4` |
-| `q3` | `ETL` | `q5` |
-| `q3` | `ELT` | `q6` |
-| `q3` | `DATA_PIPELINE` | `q7` |
-| `q4` | `ETL` | `q5` |
-| `q4` | `ELT` | `q6` |
-| `q4` | `DATA_PIPELINE` | `q7` |
-| `q5` | `ELT` | `q6` |
-| `q5` | `DATA_PIPELINE` | `q7` |
-| `q5` | `DATA_WAREHOUSING` | `q8` |
-| `q5` | `POSTGRESQL` | `q9` |
-| `q5` | `NOSQL` | `q10` |
-| `q6` | `DATA_PIPELINE` | `q7` |
-| `q6` | `DATA_WAREHOUSING` | `q8` |
-| `q6` | `POSTGRESQL` | `q9` |
-| `q6` | `NOSQL` | `q10` |
-| `q7` | `DATA_WAREHOUSING` | `q8` |
-| `q7` | `POSTGRESQL` | `q9` |
-| `q7` | `NOSQL` | `q10` |
-| `q8` | `POSTGRESQL` | `q9` |
-| `q8` | `NOSQL` | `q10` |
-| `q8` | `GIT` | `q11` |
-| `q9` | `NOSQL` | `q10` |
-| `q9` | `GIT` | `q11` |
-| `q10` | `GIT` | `q11` |
-
-#### Transition matrix
-
-Rows are states, columns are input symbols. `∅` means that δ is not defined (the automaton goes to the trap state and rejects). `→` marks the initial state and `*` the accepting states.
-
-| δ | `PYTHON` | `SQL` | `SPARK` | `AIRFLOW` | `ETL` | `ELT` | `DATA_PIPELINE` | `DATA_WAREHOUSING` | `POSTGRESQL` | `NOSQL` | `GIT` |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| →`q0` | q1 | q2 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q1` | ∅ | q2 | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q2` | ∅ | ∅ | q3 | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-| `q3` | ∅ | ∅ | ∅ | q4 | q5 | q6 | q7 | ∅ | ∅ | ∅ | ∅ |
-| `q4` | ∅ | ∅ | ∅ | ∅ | q5 | q6 | q7 | ∅ | ∅ | ∅ | ∅ |
-| `q5` | ∅ | ∅ | ∅ | ∅ | ∅ | q6 | q7 | q8 | q9 | q10 | ∅ |
-| `q6` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q7 | q8 | q9 | q10 | ∅ |
-| `q7` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q8 | q9 | q10 | ∅ |
-| `q8` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q9 | q10 | q11 |
-| `q9` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q10 | q11 |
-| `q10` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | q11 |
-| *`q11` | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ | ∅ |
-
-#### Regular expression of the recognized language
-
-```text
-L(A_DE) = (PYTHON SQL? | SQL)
-    SPARK
-    (AIRFLOW)?
-    (ETL ELT? DATA_PIPELINE? | ELT DATA_PIPELINE? | DATA_PIPELINE)
-    (DATA_WAREHOUSING POSTGRESQL? NOSQL? | POSTGRESQL NOSQL? | NOSQL)
-    GIT
-```
+Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
 
 #### Type of automaton
 
-`A_DE` is a **DFA**: it has a single initial state `q0`; every transition reads exactly one token (there are no ε-transitions); and for every pair `(q, a)` there is at most one next state, because every transition labeled with `tj` goes to the state `qj` (see the transition matrix: each cell has at most one state). The empty cells (`∅`) go to the trap state `q_trap` (Section 3.6). It has 12 states and 30 transitions, and it is minimal (`minimize()` keeps 12 states).
+`A_DE` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q2` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
-Complete diagram, generated from the implemented automaton: `diagrams/dfa/a_de.svg` (source `diagrams/dfa/a_de.dot`). The states of each group are drawn inside a box (dashed box = optional group); the accepting state has a double circle.
+![A_DE](../diagrams/automata/a_de.svg)
 
-![A_DE](../diagrams/dfa/a_de.svg)
-
-Simplified view by groups (each box represents the states of a group; a dashed arrow skips an optional group):
-
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    G1["G1 Language<br/>PYTHON / SQL"]
-    G2["G2 Processing<br/>SPARK"]
-    G3{{"G3 Orchestration<br/>AIRFLOW<br/>(optional)"}}
-    G4["G4 Data integration<br/>ETL / ELT / DATA_PIPELINE"]
-    G5["G5 Storage<br/>DATA_WAREHOUSING / POSTGRESQL / NOSQL"]
-    G6["G6 Version control<br/>GIT"]
-    q0 --> G1
-    G1 --> G2
-    G2 --> G3
-    G3 --> G4
-    G4 --> G5
-    G5 --> G6
-    G2 -.-> G4
-    G6 --> accept(((ACCEPTED)))
-```
+File: `diagrams/automata/a_de.svg` (source: `diagrams/automata/a_de.dot`).
 
 #### Examples
 
-**Accepted — résumé of Clark Kent**
-
-```text
-Sequence: PYTHON, SQL, SPARK, AIRFLOW, ETL, POSTGRESQL, GIT
-Run:      q0 --PYTHON--> q1 --SQL--> q2 --SPARK--> q3 --AIRFLOW--> q4 --ETL--> q5 --POSTGRESQL--> q9 --GIT--> q11
-Result:   ACCEPTED  (q11 ∈ F)
-```
-
-**Accepted — without the optional group Orchestration**
-
-```text
-Sequence: SQL, SPARK, ELT, DATA_PIPELINE, DATA_WAREHOUSING, GIT
-Run:      q0 --SQL--> q2 --SPARK--> q3 --ELT--> q6 --DATA_PIPELINE--> q7 --DATA_WAREHOUSING--> q8 --GIT--> q11
-Result:   ACCEPTED  (q11 ∈ F)
-```
-
-**Rejected — SPARK is missing**
-
-```text
-Sequence: PYTHON, SQL, AIRFLOW, ETL, POSTGRESQL, GIT
-Run:      q0 --PYTHON--> q1 --SQL--> q2 --AIRFLOW--> q_trap
-Result:   REJECTED  (δ(q2, AIRFLOW) is not defined → q_trap)
-Missing mandatory groups: Processing
-```
-
-**Rejected — no storage technology**
-
-```text
-Sequence: PYTHON, SPARK, AIRFLOW, ETL, GIT
-Run:      q0 --PYTHON--> q1 --SPARK--> q3 --AIRFLOW--> q4 --ETL--> q5 --GIT--> q_trap
-Result:   REJECTED  (δ(q5, GIT) is not defined → q_trap)
-Missing mandatory groups: Storage
-```
-
-
----
-
-## 7. Summary of the Automata
-
-| Automaton | Profile | Type | States (size of Q) | Symbols (size of Σ) | Transitions | Groups M / O | F |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| `A_FS` | FULL_STACK_DEVELOPER | DFA | 14 | 13 | 45 | 5 / 1 | { q13 } |
-| `A_ML` | MACHINE_LEARNING_ENGINEER | DFA | 12 | 11 | 33 | 5 / 1 | { q11 } |
-| `A_SEC` | CYBERSECURITY_ENGINEER | DFA | 13 | 12 | 37 | 5 / 1 | { q12 } |
-| `A_DE` | DATA_ENGINEER | DFA | 12 | 11 | 30 | 5 / 1 | { q11 } |
-
-In the four profiles the last group (`GIT`) is mandatory, so the only accepting state is the state of `GIT`.
-
-### 7.1 Classification of one résumé with the four automata
-
-The same résumé is evaluated by the four automata, each one with its own sorted sequence. A résumé can be accepted by more than one profile:
-
-```text
-Tony Stark
-5 years of experience
-Technical Skills: Python, Bash, SQL, Pandas, NumPy, PyTorch, Spark, ETL,
-                  PostgreSQL, Linux, TCP/IP, Nmap, Docker, Git.
-```
-
-| Automaton | Sequence | Run | Result |
+| Case | Sequence (from stage 2) | Run | Output |
 | :--- | :--- | :--- | :---: |
-| `A_FS` | `SQL, POSTGRESQL, GIT` | `q0 --SQL--> q_trap` | REJECTED |
-| `A_ML` | `PYTHON, PANDAS, NUMPY, PYTORCH, SQL, POSTGRESQL, GIT` | `q0 → q1 → q2 → q3 → q6 → q9 → q10 → q11` | ACCEPTED |
-| `A_SEC` | `PYTHON, BASH, LINUX, TCP_IP, NMAP, DOCKER, GIT` | `q0 → q1 → q2 → q3 → q5 → q7 → q10 → q12` | ACCEPTED |
-| `A_DE` | `PYTHON, SQL, SPARK, ETL, POSTGRESQL, GIT` | `q0 → q1 → q2 → q3 → q5 → q9 → q11` | ACCEPTED |
-
-```text
-Accepted profiles: MACHINE_LEARNING_ENGINEER, CYBERSECURITY_ENGINEER, DATA_ENGINEER
-```
-
-The Full Stack automaton rejects in the first step: `SQL` belongs to group G5, and from `q0` the groups G1, G2 and G3 (mandatory) cannot be skipped.
+| Clark Kent (profile example) | `PYTHON, SQL, SPARK, AIRFLOW, ETL, POSTGRESQL, GIT` | `q0 --PYTHON--> q1 --SQL--> q1 --SPARK--> q2 --AIRFLOW--> q3 --ETL--> q4 --POSTGRESQL--> q5 --GIT--> q6` | **ACCEPTED** |
+| Without Airflow | `SQL, SPARK, DATA_PIPELINE, DATA_WAREHOUSING, GIT` | `q0 --SQL--> q1 --SPARK--> q2 --DATA_PIPELINE--> q4 --DATA_WAREHOUSING--> q5 --GIT--> q6` | **ACCEPTED** |
+| Without Spark | `PYTHON, ETL, POSTGRESQL, GIT` | `q0 --PYTHON--> q1 --ETL--> (no transition)` | **REJECTED** |
+| Without storage | `PYTHON, SPARK, ELT, GIT` | `q0 --PYTHON--> q1 --SPARK--> q2 --ELT--> q4 --GIT--> (no transition)` | **REJECTED** |
 
 ---
 
-## 8. Implementation Guide
+## 6. Implementation
 
-### 8.1 File structure
+### 6.1 Files
 
 ```text
 src/model/classification/
     __init__.py
-    profile_patterns.py        groups of each profile + mandatory/optional (data only)
-    automata_builder.py        construction of the DFAs with pyformlang (Section 5)
-    classification_result.py   ProfileDecision and ClassificationResult
-    resume_classifier.py       runs the four automata on a NormalizedData
-src/model/pipeline.py          regex -> FST -> DFA for a complete résumé
-src/visualization/dfa_export.py
-                               diagrams (diagrams/dfa/*.dot, *.svg) and formal tables
+    profile_vocabulary.py      # class ProfileVocabulary: tokens of each group of each profile
+    profile_automata.py        # class ProfileAutomata: the four DFAs (pyformlang) and classify()
+
+diagrams/automata/
+    a_fs, a_ml, a_sec, a_de    # transition diagrams (.svg and Graphviz .dot)
+
+tests/classification/
+    test_profile_automata.py
 ```
 
-### 8.2 `profile_patterns.py`
+### 6.2 `ProfileVocabulary`
 
-The tokens of every group are **not** written again: they are taken from `PROFILE_GROUPS` of `profile_order.py`, so the order used to sort the sequence and the order recognized by the automaton come from the same definition. This module only adds the name of each group and whether it is mandatory:
+It only defines data: one list per group, the list `GROUPS` with the 6 groups of each profile in order, and `OPTIONAL` with the optional group of each profile.
 
 ```python
-FULL_STACK_REQUIREMENTS = [
-    ("Frontend language", MANDATORY),
-    ("Frontend framework", MANDATORY),
-    ("Backend", MANDATORY),
-    ("API", OPTIONAL),
-    ("Database", MANDATORY),
-    ("Version control", MANDATORY),
-]
+class ProfileVocabulary:
+    ML_LANGUAGE = ["PYTHON"]
+    ML_DATA_LIBRARIES = ["PANDAS", "NUMPY"]
+    ML_LIBRARIES = ["SCIKIT_LEARN", "TENSORFLOW", "PYTORCH"]
+    ML_DEVELOPMENT = ["MACHINE_LEARNING", "ML_MODEL_DEVELOPMENT"]   # optional
+    ML_DATABASE = ["SQL", "POSTGRESQL"]
+    ML_VERSION_CONTROL = ["GIT"]
+    ...
 ```
 
-To change the pattern of a profile, it is enough to change one of these flags; the automaton, its diagram and its tables are generated again from it.
+### 6.3 `ProfileAutomata`
 
-### 8.3 `automata_builder.py`
-
-`build_profile_dfa(groups)` implements the construction of Section 5 with `pyformlang.finite_automaton.DeterministicFiniteAutomaton`:
+Each automaton is written by hand with `pyformlang` (`DeterministicFiniteAutomaton`, `State`, `Symbol`), group by group. For example, `A_ML`:
 
 ```python
-dfa.add_start_state(State("q0"))
+q0 = State("q0")
+q1 = State("q1")    # language read
+...
+q6 = State("q6")    # version control read
 
-for i, s_from in enumerate(states):
-    for j in range(i + 1, len(states)):
-        if _only_optional(groups, g(s_from) + 1, g(s_to) - 1):
-            dfa.add_transition(State(s_from), Symbol(t_j), State(s_to))
+dfa.add_start_state(q0)
+dfa.add_final_state(q6)
 
-for state in states:
-    if _only_optional(groups, g(state) + 1, len(groups)):
-        dfa.add_final_state(State(state))
+# 1. Language: PYTHON
+self._add(p, dfa, q0, V.ML_LANGUAGE, q1)
+
+# 2. Data libraries: PANDAS | NUMPY
+self._add(p, dfa, q1, V.ML_DATA_LIBRARIES, q2)
+self._add(p, dfa, q2, V.ML_DATA_LIBRARIES, q2)        # loop
+...
+# 5. Database: SQL | POSTGRESQL
+self._add(p, dfa, q4, V.ML_DATABASE, q5)
+self._add(p, dfa, q3, V.ML_DATABASE, q5)              # skips ML development
+self._add(p, dfa, q5, V.ML_DATABASE, q5)              # loop
+
+# 6. Version control: GIT
+self._add(p, dfa, q5, V.ML_VERSION_CONTROL, q6)
 ```
 
-The class `ResumeLensDFA` extends the pyformlang DFA only to keep the list of transitions, the token and the group of each state (used by the documentation and to show the run step by step). The recognition is done by `pyformlang` (`dfa.accepts(...)`) without any change.
+`_add(profile, dfa, source, tokens, target)` adds one transition `source --token--> target` for each token of the list (it is the same as writing one `add_transition` per token). It also saves the transition in `self.transitions`, which the tests use to check that every automaton is deterministic and has the documented size.
 
-### 8.4 `resume_classifier.py`
+Main methods:
 
-The four automata are built once, when the module is imported (`PROFILE_DFAS`). `classify_resume(normalized)` runs, for every profile, the automaton on `normalized.profile_sequences[profile]` and returns a `ClassificationResult`:
+| Method | Description |
+| :--- | :--- |
+| `accepts(profile, sequence)` | Runs the automaton of the profile with `pyformlang` (`dfa.accepts`) and returns `True` or `False`. |
+| `classify(normalized)` | Main entry point of the stage. Runs the four automata on `normalized.profile_sequences` and returns `{profile: "ACCEPTED" / "REJECTED"}`. |
+
+Usage with stages 1 and 2:
 
 ```python
-result = classify_resume(normalized)
+from src.model.extraction.resume_extractor import extract_resume_information
+from src.model.normalization.resume_normalizer import ResumeNormalizer
+from src.model.classification.profile_automata import ProfileAutomata
 
-result.result_of("FULL_STACK_DEVELOPER")   # "ACCEPTED"
-result.accepted_profiles                   # ["FULL_STACK_DEVELOPER"]
-result.decisions["FULL_STACK_DEVELOPER"].trace
-# [("q0", "JAVASCRIPT", "q1"), ("q1", "REACT", "q3"), ...]
+extracted = extract_resume_information(text)       # stage 1
+normalized = ResumeNormalizer().normalize(extracted)   # stage 2
+result = ProfileAutomata().classify(normalized)    # stage 3
 ```
 
-`ClassificationResult` also keeps the `NormalizedData`, so stage 4 (candidate-profile DSL) receives the candidate information and the result of each profile in one object.
+### 6.4 Diagrams
 
-### 8.5 Running the pipeline and generating the diagrams
-
-```bash
-# Stages 1-3 on a résumé in a text file
-python -m src.model.pipeline path/to/resume.txt
-
-# Diagrams diagrams/dfa/a_fs.dot/.svg, a_ml, a_sec, a_de
-python -m src.visualization.dfa_export
-
-# Formal tables of one automaton (Markdown, as in Section 6)
-python -m src.visualization.dfa_export --markdown A_FS
-```
-
-The `.svg` files are generated only if the Graphviz program `dot` is installed.
+The transition diagrams are in `diagrams/automata/` (`.svg`, and the Graphviz source `.dot`). The style follows the example of the statement: one arrow per token, the loops of a state drawn as one arrow with all their tokens, and a double circle for the accepting state `q6`. They were generated from the transitions of `ProfileAutomata`, so they match the implementation.
 
 ---
 
-## 9. Test Cases for this Stage
+## 7. Test Cases for this Stage
 
-Tests in `tests/classification/`. Run them from the root of the project with `python -m pytest`.
+`tests/classification/test_profile_automata.py`:
 
-### 9.1 Structure of the automata (`test_automata_builder.py`)
-
-| Test | Expected result |
-| :--- | :--- |
-| One automaton per profile | 4 automata |
-| Size of the automata | size of Q, size of Σ and transitions of Section 7 |
-| Alphabet | `Σ` = tokens of the canonical order of the profile |
-| States | one state per token + `q0`; initial state `q0` |
-| Accepting states | only the state of `GIT` |
-| Determinism | `is_deterministic()` and no repeated pair `(q, a)` |
-| Transitions | every transition with `tj` goes to `qj` |
-| Minimality | `minimize()` keeps the same number of states |
-| Exhaustive test | for **every** sorted subset of the tokens of each profile (8192 sequences for Full Stack), the automaton accepts iff every mandatory group has at least one token |
-| Unsorted sequence | `REACT, JAVASCRIPT, ...` → rejected |
-| Repeated token | `JAVASCRIPT, JAVASCRIPT, ...` → rejected |
-| Token of other profile | `PANDAS` in `A_FS` → rejected |
-| Run | trace `q0 → q1 → q3 → q6 → q11 → q13` for the statement example; trap state when `δ` is not defined |
-
-### 9.2 Classification (`test_resume_classifier.py`)
-
-| Profile | Sequence | Expected |
-| :--- | :--- | :---: |
-| Full Stack | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT` | ACCEPTED |
-| Full Stack | `TYPESCRIPT, ANGULAR, VUE, SPRING_BOOT, REST_API, SQL, NOSQL, GIT` | ACCEPTED |
-| Machine Learning | `PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT` | ACCEPTED |
-| Machine Learning | `PYTHON, NUMPY, PYTORCH, ML_MODEL_DEVELOPMENT, SQL, GIT` | ACCEPTED |
-| Cybersecurity | `PYTHON, LINUX, TCP_IP, NMAP, DOCKER, GIT` | ACCEPTED |
-| Cybersecurity | `BASH, LINUX, NETWORKING, VULNERABILITY_ASSESSMENT, GIT` | ACCEPTED |
-| Data Engineer | `PYTHON, SQL, SPARK, AIRFLOW, ETL, POSTGRESQL, GIT` | ACCEPTED |
-| Data Engineer | `SQL, SPARK, ELT, DATA_PIPELINE, DATA_WAREHOUSING, GIT` | ACCEPTED |
-| Full Stack | `JAVASCRIPT, REACT, POSTGRESQL, GIT` | REJECTED (missing Backend) |
-| Full Stack | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL` | REJECTED (missing Version control) |
-| Full Stack | ε (empty) | REJECTED |
-| Machine Learning | `PYTHON, PANDAS, NUMPY, SQL, GIT` | REJECTED (missing ML libraries) |
-| Machine Learning | `PANDAS, SCIKIT_LEARN, SQL, GIT` | REJECTED (missing Language) |
-| Cybersecurity | `PYTHON, LINUX, NMAP, DOCKER, GIT` | REJECTED (missing Networking) |
-| Cybersecurity | `PYTHON, LINUX, TCP_IP, DOCKER, GIT` | REJECTED (missing Security) |
-| Data Engineer | `PYTHON, SQL, AIRFLOW, ETL, POSTGRESQL, GIT` | REJECTED (missing Processing) |
-| Data Engineer | `PYTHON, SPARK, AIRFLOW, ETL, GIT` | REJECTED (missing Storage) |
-| Machine Learning | `GIT, POSTGRESQL, TENSORFLOW, PANDAS, PYTHON` (unsorted) | REJECTED by the automaton; ACCEPTED with `classify_tokens` (sorts first) |
-
-### 9.3 Complete pipeline
-
-| Scenario | Expected |
-| :--- | :--- |
-| The four reference résumés (Wednesday Addams, Mary Jane Watson, Peter Parker, Clark Kent) | each one ACCEPTED by its profile |
-| Wednesday Addams | accepted **only** as Full Stack Developer |
-| Résumé without qualifications | rejected by the four profiles |
-| `classify_resume` | keeps the `NormalizedData` and returns one decision per profile |
+| Test | Input | Expected result |
+| :--- | :--- | :--- |
+| Order of stage 2 | `sort_for_profile` with all the tokens in reverse order | The sequence follows the order of the groups of `ProfileVocabulary` |
+| Tokens produced by stage 2 | Every token of the automata | Exists in the canonical vocabulary of stage 2 |
+| Example of the statement (Full Stack), stages 1-2-3 | `JS, React.js, NodeJS, Postgres, Git` | `FULL_STACK_DEVELOPER: ACCEPTED` |
+| Example of the statement (ML), stages 1-2-3 | `Python, Pandas, NumPy, Scikit-learn, TensorFlow, SQL, Git` | `MACHINE_LEARNING_ENGINEER: ACCEPTED` |
+| Example of the guide | `PYTHON, PANDAS, TENSORFLOW, POSTGRESQL, GIT` | `ACCEPTED` by `A_ML` |
+| Order of the résumé | `Git, NodeJS, JS, Postgres, React.js` | `FULL_STACK_DEVELOPER: ACCEPTED` |
+| Cybersecurity and Data Engineer examples | Profile examples of `04_profiles.md` | `ACCEPTED` |
+| Several tokens of one group | `JAVASCRIPT, TYPESCRIPT, REACT, VUE, ...` | `ACCEPTED` (loops) |
+| Optional group present or missing | With and without `REST_API`, `AIRFLOW`, containers | `ACCEPTED` in both cases |
+| Mandatory group missing | Without backend, Git, Linux, or Spark | `REJECTED` |
+| Wrong order or foreign token | `GIT` first; `REACT` in ML | `REJECTED` |
+| Empty sequence | `[]` | `REJECTED` in the four automata |
+| Four results | Empty résumé | One result per profile, all `REJECTED` |
+| Determinism | Every automaton | No pair (state, token) has two transitions |
+| Size | Every automaton | 7 states; 27, 22, 23, and 22 transitions |

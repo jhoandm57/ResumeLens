@@ -1,19 +1,21 @@
 from src.model.extraction.extracted_data import ExtractedData
 from src.model.extraction.resume_extractor import extract_resume_information
 from src.model.normalization.normalized_data import NormalizedData
-from src.model.normalization.profile_order import (
+from src.model.classification.profile_vocabulary import (
     FULL_STACK_DEVELOPER,
     MACHINE_LEARNING_ENGINEER,
     CYBERSECURITY_ENGINEER,
     DATA_ENGINEER,
 )
-from src.model.normalization.fst_builder import translate
-from src.model.normalization import resume_normalizer
-from src.model.normalization.resume_normalizer import normalize_resume
+from src.model.normalization.resume_normalizer import ResumeNormalizer
+
+
+NORMALIZER = ResumeNormalizer()
+sort_for_profile = ResumeNormalizer.sort_for_profile
 
 
 def test_returns_expected_type():
-    result = normalize_resume(ExtractedData())
+    result = NORMALIZER.normalize(ExtractedData())
 
     assert isinstance(result, NormalizedData)
 
@@ -26,7 +28,7 @@ def test_full_stack_example_from_statement():
     JS, React.js, NodeJS, Postgres, Git.
     """
 
-    result = normalize_resume(extract_resume_information(resume))
+    result = NORMALIZER.normalize(extract_resume_information(resume))
 
     assert result.programming_languages == ["JAVASCRIPT"]
     assert result.frameworks_libraries == ["REACT", "NODE_JS"]
@@ -47,7 +49,7 @@ def test_full_stack_example_from_statement():
 def test_order_does_not_depend_on_resume():
     resume = "Skills: Git, NodeJS, JS, Postgres, React.js"
 
-    result = normalize_resume(extract_resume_information(resume))
+    result = NORMALIZER.normalize(extract_resume_information(resume))
 
     assert result.profile_sequences[FULL_STACK_DEVELOPER] == [
         "JAVASCRIPT", "REACT", "NODE_JS", "POSTGRESQL", "GIT",
@@ -62,7 +64,7 @@ def test_machine_learning_example_from_statement():
     Python, Pandas, NumPy, Scikit-learn, TensorFlow, SQL, Git.
     """
 
-    result = normalize_resume(extract_resume_information(resume))
+    result = NORMALIZER.normalize(extract_resume_information(resume))
 
     assert result.experience_years == 2
     assert result.profile_sequences[MACHINE_LEARNING_ENGINEER] == [
@@ -76,7 +78,7 @@ def test_duplicates_and_sql_appear_once():
         databases=["SQL"],
     )
 
-    result = normalize_resume(extracted)
+    result = NORMALIZER.normalize(extracted)
 
     assert result.programming_languages == ["JAVASCRIPT", "SQL"]
     assert result.qualifications.count("SQL") == 1
@@ -88,17 +90,17 @@ def test_maximum_experience_is_kept():
         professional_experience=["2 years of experience", "4 years experience"],
     )
 
-    assert normalize_resume(extracted).experience_years == 4
+    assert NORMALIZER.normalize(extracted).experience_years == 4
 
 
 def test_unknown_values_are_ignored():
     extracted = ExtractedData(databases=["MySQL", "Postgres"])
 
-    assert normalize_resume(extracted).databases == ["POSTGRESQL"]
+    assert NORMALIZER.normalize(extracted).databases == ["POSTGRESQL"]
 
 
 def test_empty_resume():
-    result = normalize_resume(ExtractedData())
+    result = NORMALIZER.normalize(ExtractedData())
 
     assert result.qualifications == []
     assert result.experience_years is None
@@ -108,7 +110,7 @@ def test_empty_resume():
 def test_contact_information_is_kept():
     resume = "Peter Parker peter@mail.com +57 300 123 4567"
 
-    result = normalize_resume(extract_resume_information(resume))
+    result = NORMALIZER.normalize(extract_resume_information(resume))
 
     assert result.emails == ["peter@mail.com"]
     assert result.phones == ["+57 300 123 4567"]
@@ -123,7 +125,7 @@ def test_cybersecurity_example_of_the_profiles():
     Python, Linux, TCP/IP, Docker, Nmap, Git.
     """
 
-    result = normalize_resume(extract_resume_information(resume))
+    result = NORMALIZER.normalize(extract_resume_information(resume))
 
     assert result.profile_sequences[CYBERSECURITY_ENGINEER] == [
         "PYTHON", "LINUX", "TCP_IP", "NMAP", "SECURITY_AUTOMATION", "DOCKER", "GIT",
@@ -152,27 +154,90 @@ def test_everything_extracted_by_stage_1_is_normalized():
 
     extracted = extract_resume_information(resume)
 
+    t = NORMALIZER.transducers
     categories = [
-        (resume_normalizer.LANGUAGES_FST, extracted.programming_languages),
-        (resume_normalizer.FRAMEWORKS_FST, extracted.frameworks_libraries),
-        (resume_normalizer.DATABASES_FST, extracted.databases),
-        (resume_normalizer.TOOLS_FST, extracted.tools_technologies),
-        (resume_normalizer.OTHER_FST, extracted.other_qualifications),
-        (resume_normalizer.ACADEMIC_FST, extracted.academic_qualifications),
-        (resume_normalizer.EXPERIENCE_FST, extracted.professional_experience),
+        (t.languages, extracted.programming_languages),
+        (t.frameworks, extracted.frameworks_libraries),
+        (t.databases, extracted.databases),
+        (t.tools, extracted.tools_technologies),
+        (t.other, extracted.other_qualifications),
+        (t.academic, extracted.academic_qualifications),
+        (t.experience, extracted.professional_experience),
     ]
 
     for fst, values in categories:
         assert values != []
 
         for value in values:
-            assert translate(fst, value) is not None, value
+            assert t.translate(fst, value) is not None, value
 
 
 def test_name_is_copied_without_changes():
     extracted = ExtractedData(name="Wednesday Addams", programming_languages=["JS"])
 
-    result = normalize_resume(extracted)
+    result = NORMALIZER.normalize(extracted)
 
     assert result.name == "Wednesday Addams"
-    assert normalize_resume(ExtractedData()).name is None
+    assert NORMALIZER.normalize(ExtractedData()).name is None
+
+
+# -------------------------------------------------------------------
+# Sorting by profile (canonical order)
+# -------------------------------------------------------------------
+
+def test_full_stack_order_from_statement():
+    tokens = ["GIT", "NODE_JS", "JAVASCRIPT", "POSTGRESQL", "REACT"]
+
+    result = sort_for_profile(tokens, FULL_STACK_DEVELOPER)
+
+    assert result == ["JAVASCRIPT", "REACT", "NODE_JS", "POSTGRESQL", "GIT"]
+
+
+def test_machine_learning_order():
+    tokens = ["GIT", "SQL", "TENSORFLOW", "PANDAS", "PYTHON"]
+
+    result = sort_for_profile(tokens, MACHINE_LEARNING_ENGINEER)
+
+    assert result == ["PYTHON", "PANDAS", "TENSORFLOW", "SQL", "GIT"]
+
+
+def test_tokens_of_other_profiles_are_discarded():
+    tokens = ["PANDAS", "REACT", "GIT"]
+
+    assert sort_for_profile(tokens, FULL_STACK_DEVELOPER) == ["REACT", "GIT"]
+    assert sort_for_profile(tokens, CYBERSECURITY_ENGINEER) == ["GIT"]
+
+
+def test_duplicates_are_removed():
+    tokens = ["SQL", "PYTHON", "SQL"]
+
+    assert sort_for_profile(tokens, DATA_ENGINEER) == ["PYTHON", "SQL"]
+
+
+def test_empty_sequence():
+    assert sort_for_profile([], DATA_ENGINEER) == []
+
+
+def test_example_sequence_of_the_statement_is_preserved():
+    # Sequence of the automaton example of the statement (Stage 3)
+    tokens = ["GIT", "POSTGRESQL", "TENSORFLOW", "PANDAS", "PYTHON"]
+
+    result = sort_for_profile(tokens, MACHINE_LEARNING_ENGINEER)
+
+    assert result == ["PYTHON", "PANDAS", "TENSORFLOW", "POSTGRESQL", "GIT"]
+
+
+def test_several_tokens_of_the_same_group_are_kept_in_group_order():
+    tokens = ["NUMPY", "PYTHON", "PANDAS"]
+
+    result = sort_for_profile(tokens, MACHINE_LEARNING_ENGINEER)
+
+    assert result == ["PYTHON", "PANDAS", "NUMPY"]
+
+
+def test_linux_in_cybersecurity_order():
+    tokens = ["GIT", "LINUX", "PYTHON", "TCP_IP"]
+
+    result = sort_for_profile(tokens, CYBERSECURITY_ENGINEER)
+
+    assert result == ["PYTHON", "LINUX", "TCP_IP", "GIT"]

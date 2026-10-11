@@ -1,6 +1,6 @@
 # ResumeLens – Formal Definitions of the Transducers
 
-> This file is generated automatically by `python -m src.visualization.fst_export`. Do not edit it by hand: change `canonical_vocabulary.py` or `fst_builder.py` and run the script again.
+> This file was generated from the transducers built by the code (class `NormalizationTransducers` with the tables of `NormalizationVocabulary`). If the vocabulary changes, these tables, the summary of `06_fst_design.md` (Section 6.8), and the diagrams of `diagrams/fst/` must be updated.
 
 It contains the complete 7-tuple `M = (Q, Σ, Γ, δ, ω, q0, F)` of every transducer of the normalization stage. The design and the construction method are explained in `06_fst_design.md`.
 
@@ -20,7 +20,7 @@ Notation:
 | `M_TOOLS` | 89 | 23 | 11 | 106 |
 | `M_OTHER` | 137 | 22 | 6 | 145 |
 | `M_ACAD` | 107 | 24 | 7 | 125 |
-| `M_EXP` | 37 | 26 | 10 | 63 |
+| `M_EXP` | 4 | 39 | 10 | 87 |
 
 ## M_LANG — Programming languages
 
@@ -1353,17 +1353,17 @@ Any pair (state, input) that is not in the table has no transition, so the input
 ```text
 M_EXP = (Q, Σ, Γ, δ, ω, q0, F)
 
-Q  = { q0, q1, plus, sp, y1, y2, y3, unit, units, b1, o1, of, b2, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, prof, b3, x1, x2, x3, x4, x5, x6, x7, x8, x9, exp, qf }
-     |Q| = 37
-Σ  = { ␣, +, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, c, e, f, i, l, n, o, p, r, s, x, y, # }
-     |Σ| = 26
+Q  = { q0, q1, q2, qf }
+     |Q| = 4
+Σ  = { ␣, +, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, # }
+     |Σ| = 39
 Γ  = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }
      |Γ| = 10
 q0 = q0
 F  = { qf }
 ```
 
-Number of transitions: 63.
+Number of transitions: 87.
 
 Diagram: `diagrams/fst/m_exp.svg` (source: `diagrams/fst/m_exp.dot`).
 
@@ -1372,41 +1372,8 @@ Diagram: `diagrams/fst/m_exp.svg` (source: `diagrams/fst/m_exp.dot`).
 | State | Meaning |
 | :--- | :--- |
 | `q0` | nothing has been read |
-| `q1` | reading the number of years (digits are copied) |
-| `plus` | "+" after the number |
-| `sp` | space after the number |
-| `y1` | "y" |
-| `y2` | "ye" |
-| `y3` | "yea" |
-| `unit` | "year" or "yr" |
-| `units` | "years" or "yrs" |
-| `b1` | space after the unit |
-| `o1` | "o" of "of" |
-| `of` | "of" |
-| `b2` | space after "of" |
-| `p1` | reading a word of the expression |
-| `p2` | reading a word of the expression |
-| `p3` | reading a word of the expression |
-| `p4` | reading a word of the expression |
-| `p5` | reading a word of the expression |
-| `p6` | reading a word of the expression |
-| `p7` | reading a word of the expression |
-| `p8` | reading a word of the expression |
-| `p9` | reading a word of the expression |
-| `p10` | reading a word of the expression |
-| `p11` | reading a word of the expression |
-| `prof` | "professional" |
-| `b3` | space after "professional" |
-| `x1` | reading a word of the expression |
-| `x2` | reading a word of the expression |
-| `x3` | reading a word of the expression |
-| `x4` | reading a word of the expression |
-| `x5` | reading a word of the expression |
-| `x6` | reading a word of the expression |
-| `x7` | reading a word of the expression |
-| `x8` | reading a word of the expression |
-| `x9` | reading a word of the expression |
-| `exp` | "experience" |
+| `q1` | reading the number of years (the digits are copied) |
+| `q2` | reading the rest of the expression (everything is erased) |
 | `qf` | accepting state (end marker read) |
 
 ### Transition relation δ and output relation ω
@@ -1417,66 +1384,90 @@ Diagram: `diagrams/fst/m_exp.svg` (source: `diagrams/fst/m_exp.dot`).
 | :--- | :---: | :--- | :--- |
 | `q0` | `0` | `q1` | `0` |
 | `q1` | `0` | `q1` | `0` |
+| `q2` | `0` | `q2` | `ε` |
 | `q0` | `1` | `q1` | `1` |
 | `q1` | `1` | `q1` | `1` |
+| `q2` | `1` | `q2` | `ε` |
 | `q0` | `2` | `q1` | `2` |
 | `q1` | `2` | `q1` | `2` |
+| `q2` | `2` | `q2` | `ε` |
 | `q0` | `3` | `q1` | `3` |
 | `q1` | `3` | `q1` | `3` |
+| `q2` | `3` | `q2` | `ε` |
 | `q0` | `4` | `q1` | `4` |
 | `q1` | `4` | `q1` | `4` |
+| `q2` | `4` | `q2` | `ε` |
 | `q0` | `5` | `q1` | `5` |
 | `q1` | `5` | `q1` | `5` |
+| `q2` | `5` | `q2` | `ε` |
 | `q0` | `6` | `q1` | `6` |
 | `q1` | `6` | `q1` | `6` |
+| `q2` | `6` | `q2` | `ε` |
 | `q0` | `7` | `q1` | `7` |
 | `q1` | `7` | `q1` | `7` |
+| `q2` | `7` | `q2` | `ε` |
 | `q0` | `8` | `q1` | `8` |
 | `q1` | `8` | `q1` | `8` |
+| `q2` | `8` | `q2` | `ε` |
 | `q0` | `9` | `q1` | `9` |
 | `q1` | `9` | `q1` | `9` |
-| `q1` | `+` | `plus` | `ε` |
-| `q1` | `␣` | `sp` | `ε` |
-| `plus` | `␣` | `sp` | `ε` |
-| `q1` | `y` | `y1` | `ε` |
-| `plus` | `y` | `y1` | `ε` |
-| `sp` | `y` | `y1` | `ε` |
-| `y1` | `e` | `y2` | `ε` |
-| `y2` | `a` | `y3` | `ε` |
-| `y3` | `r` | `unit` | `ε` |
-| `y1` | `r` | `unit` | `ε` |
-| `unit` | `s` | `units` | `ε` |
-| `unit` | `␣` | `b1` | `ε` |
-| `units` | `␣` | `b1` | `ε` |
-| `b1` | `o` | `o1` | `ε` |
-| `o1` | `f` | `of` | `ε` |
-| `of` | `␣` | `b2` | `ε` |
-| `b1` | `p` | `p1` | `ε` |
-| `b2` | `p` | `p1` | `ε` |
-| `p1` | `r` | `p2` | `ε` |
-| `p2` | `o` | `p3` | `ε` |
-| `p3` | `f` | `p4` | `ε` |
-| `p4` | `e` | `p5` | `ε` |
-| `p5` | `s` | `p6` | `ε` |
-| `p6` | `s` | `p7` | `ε` |
-| `p7` | `i` | `p8` | `ε` |
-| `p8` | `o` | `p9` | `ε` |
-| `p9` | `n` | `p10` | `ε` |
-| `p10` | `a` | `p11` | `ε` |
-| `p11` | `l` | `prof` | `ε` |
-| `prof` | `␣` | `b3` | `ε` |
-| `b1` | `e` | `x1` | `ε` |
-| `b2` | `e` | `x1` | `ε` |
-| `b3` | `e` | `x1` | `ε` |
-| `x1` | `x` | `x2` | `ε` |
-| `x2` | `p` | `x3` | `ε` |
-| `x3` | `e` | `x4` | `ε` |
-| `x4` | `r` | `x5` | `ε` |
-| `x5` | `i` | `x6` | `ε` |
-| `x6` | `e` | `x7` | `ε` |
-| `x7` | `n` | `x8` | `ε` |
-| `x8` | `c` | `x9` | `ε` |
-| `x9` | `e` | `exp` | `ε` |
-| `exp` | `#` | `qf` | `ε` |
+| `q2` | `9` | `q2` | `ε` |
+| `q1` | `a` | `q2` | `ε` |
+| `q2` | `a` | `q2` | `ε` |
+| `q1` | `b` | `q2` | `ε` |
+| `q2` | `b` | `q2` | `ε` |
+| `q1` | `c` | `q2` | `ε` |
+| `q2` | `c` | `q2` | `ε` |
+| `q1` | `d` | `q2` | `ε` |
+| `q2` | `d` | `q2` | `ε` |
+| `q1` | `e` | `q2` | `ε` |
+| `q2` | `e` | `q2` | `ε` |
+| `q1` | `f` | `q2` | `ε` |
+| `q2` | `f` | `q2` | `ε` |
+| `q1` | `g` | `q2` | `ε` |
+| `q2` | `g` | `q2` | `ε` |
+| `q1` | `h` | `q2` | `ε` |
+| `q2` | `h` | `q2` | `ε` |
+| `q1` | `i` | `q2` | `ε` |
+| `q2` | `i` | `q2` | `ε` |
+| `q1` | `j` | `q2` | `ε` |
+| `q2` | `j` | `q2` | `ε` |
+| `q1` | `k` | `q2` | `ε` |
+| `q2` | `k` | `q2` | `ε` |
+| `q1` | `l` | `q2` | `ε` |
+| `q2` | `l` | `q2` | `ε` |
+| `q1` | `m` | `q2` | `ε` |
+| `q2` | `m` | `q2` | `ε` |
+| `q1` | `n` | `q2` | `ε` |
+| `q2` | `n` | `q2` | `ε` |
+| `q1` | `o` | `q2` | `ε` |
+| `q2` | `o` | `q2` | `ε` |
+| `q1` | `p` | `q2` | `ε` |
+| `q2` | `p` | `q2` | `ε` |
+| `q1` | `q` | `q2` | `ε` |
+| `q2` | `q` | `q2` | `ε` |
+| `q1` | `r` | `q2` | `ε` |
+| `q2` | `r` | `q2` | `ε` |
+| `q1` | `s` | `q2` | `ε` |
+| `q2` | `s` | `q2` | `ε` |
+| `q1` | `t` | `q2` | `ε` |
+| `q2` | `t` | `q2` | `ε` |
+| `q1` | `u` | `q2` | `ε` |
+| `q2` | `u` | `q2` | `ε` |
+| `q1` | `v` | `q2` | `ε` |
+| `q2` | `v` | `q2` | `ε` |
+| `q1` | `w` | `q2` | `ε` |
+| `q2` | `w` | `q2` | `ε` |
+| `q1` | `x` | `q2` | `ε` |
+| `q2` | `x` | `q2` | `ε` |
+| `q1` | `y` | `q2` | `ε` |
+| `q2` | `y` | `q2` | `ε` |
+| `q1` | `z` | `q2` | `ε` |
+| `q2` | `z` | `q2` | `ε` |
+| `q1` | `+` | `q2` | `ε` |
+| `q2` | `+` | `q2` | `ε` |
+| `q1` | `␣` | `q2` | `ε` |
+| `q2` | `␣` | `q2` | `ε` |
+| `q2` | `#` | `qf` | `ε` |
 
 Any pair (state, input) that is not in the table has no transition, so the input is rejected.
