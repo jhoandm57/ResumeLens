@@ -12,8 +12,8 @@ class NormalizedData:
     transducers and the sorted sequence of each profile.
     """
 
-    # The name and the contact information are not normalized. It is copied from
-    # ExtractedData so that the next stages (candidate profile)
+    # The name and the contact information are not normalized. They are
+    # copied from ExtractedData so that the next stages (candidate profile)
     # receive all the candidate information in one object.
     name: str | None = None
 
@@ -34,6 +34,13 @@ class NormalizedData:
     academic_qualifications: list[str] = field(default_factory=list)
 
     experience_years: int | None = None
+
+    # Experience expressions exactly as they were extracted from the
+    # résumé (for example "3 years of experience"), without duplicates.
+    # Only the expressions accepted by M_EXP are kept. They are used by
+    # the candidate profile (stage 4), which can list several
+    # professional experiences.
+    experience_entries: list[str] = field(default_factory=list)
 
     # All technical qualification tokens without duplicates.
     # They are grouped by category (languages, frameworks, databases,

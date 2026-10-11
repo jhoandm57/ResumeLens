@@ -1,0 +1,189 @@
+/*
+    ResumeLens – Candidate Profile Language (stage 4)
+
+    Context-free grammar of the DSL that represents the structured
+    information produced by stages 1, 2 and 3:
+
+        - candidate information (name)
+        - contact information (emails, phones)
+        - professional experience (years and the extracted expressions)
+        - education (degrees and fields of study)
+        - skills (normalized tokens, grouped by category)
+        - result of the profile classification
+
+    Example of a valid profile:
+
+        candidate "Wednesday Addams" {
+            contact {
+                email wednesday@mail.com
+                phone +57 300 1234567
+            }
+            experience {
+                years 3
+                entry "3 years of experience developing web applications"
+            }
+            education {
+                degree BACHELOR
+                field COMPUTER_SCIENCE
+            }
+            skills {
+                languages: JAVASCRIPT
+                frameworks: REACT, NODE_JS
+                databases: POSTGRESQL
+                tools: GIT
+            }
+            classification {
+                FULL_STACK_DEVELOPER: ACCEPTED
+                MACHINE_LEARNING_ENGINEER: REJECTED
+                CYBERSECURITY_ENGINEER: REJECTED
+                DATA_ENGINEER: REJECTED
+            }
+        }
+
+    See docs/08_grammar_design.md.
+*/
+
+
+// ---------------------------------------------------------------
+// Root rule (initial symbol)
+// ---------------------------------------------------------------
+
+CandidateProfile:
+    'candidate' name=STRING '{'
+        contact=Contact
+        (experience=Experience)?
+        (education=Education)?
+        (skills=Skills)?
+        classification=Classification
+    '}'
+;
+
+
+// ---------------------------------------------------------------
+// Contact information: zero or more emails, then zero or more phones
+// ---------------------------------------------------------------
+
+Contact:
+    'contact' '{'
+        emails*=Email
+        phones*=Phone
+    '}'
+;
+
+Email:
+    'email' value=EMAIL
+;
+
+Phone:
+    'phone' value=PHONE
+;
+
+
+// ---------------------------------------------------------------
+// Professional experience: years and one or more extracted entries
+// ---------------------------------------------------------------
+
+Experience:
+    'experience' '{'
+        'years' years=INT
+        entries+=ExperienceEntry
+    '}'
+;
+
+ExperienceEntry:
+    'entry' text=STRING
+;
+
+
+// ---------------------------------------------------------------
+// Education: one or more degrees or fields of study
+// ---------------------------------------------------------------
+
+Education:
+    'education' '{'
+        items+=EducationItem
+    '}'
+;
+
+EducationItem:
+    Degree | Field
+;
+
+Degree:
+    'degree' value=DegreeName
+;
+
+Field:
+    'field' value=TOKEN
+;
+
+DegreeName:
+    'BACHELOR' | 'MASTER' | 'PHD'
+;
+
+
+// ---------------------------------------------------------------
+// Skills: one or more categories, each with a list of tokens
+// separated by commas
+// ---------------------------------------------------------------
+
+Skills:
+    'skills' '{'
+        categories+=SkillCategory
+    '}'
+;
+
+SkillCategory:
+    category=CategoryName ':' tokens+=TOKEN[',']
+;
+
+CategoryName:
+    'languages' | 'frameworks' | 'databases' | 'tools' | 'other'
+;
+
+
+// ---------------------------------------------------------------
+// Result of the profile classification (stage 3)
+// ---------------------------------------------------------------
+
+Classification:
+    'classification' '{'
+        results+=ProfileResult
+    '}'
+;
+
+ProfileResult:
+    profile=ProfileName ':' result=Result
+;
+
+ProfileName:
+    'FULL_STACK_DEVELOPER'
+    | 'MACHINE_LEARNING_ENGINEER'
+    | 'CYBERSECURITY_ENGINEER'
+    | 'DATA_ENGINEER'
+;
+
+Result:
+    'ACCEPTED' | 'REJECTED'
+;
+
+
+// ---------------------------------------------------------------
+// Lexical rules (terminals defined with regular expressions)
+// ---------------------------------------------------------------
+
+// Canonical token produced by stage 2: JAVASCRIPT, NODE_JS, GIT, ...
+TOKEN:
+    /[A-Z][A-Z0-9_]*/
+;
+
+// Same structure as EMAIL_PATTERN of stage 1
+EMAIL:
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/
+;
+
+// Digits with optional "+", parentheses, spaces, dots or hyphens.
+// It must start with "+", "(" or a digit and end with a digit.
+PHONE:
+    /[+(]?[0-9][0-9 ().-]*[0-9]/
+;

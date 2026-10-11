@@ -61,6 +61,27 @@ class ResumeNormalizer:
 
         return max(years) if years else None
 
+    def experience_entries(self, values: list[str]) -> list[str]:
+        """
+        Keep the experience expressions as they were written in the
+        résumé (not normalized), without duplicates.
+
+        Only the expressions accepted by M_EXP are kept, so every entry
+        corresponds to a number of years.
+
+        Example:
+            ["3 years of experience", "5+ yrs experience"]
+            -> ["3 years of experience", "5+ yrs experience"]
+        """
+
+        accepted = [
+            value
+            for value in values
+            if self.transducers.translate(self.transducers.experience, value)
+        ]
+
+        return _unique(accepted)
+
     # ---------------------------------------------------------------
     # Sorting by profile (canonical order)
     # ---------------------------------------------------------------
@@ -137,6 +158,7 @@ class ResumeNormalizer:
             other_qualifications=other,
             academic_qualifications=academic,
             experience_years=self.normalize_experience(extracted.professional_experience),
+            experience_entries=self.experience_entries(extracted.professional_experience),
             qualifications=qualifications,
             profile_sequences=profile_sequences,
         )
