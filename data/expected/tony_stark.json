@@ -1,0 +1,22 @@
+{
+  "resume": "tony_stark.txt",
+  "name": "Tony Stark",
+  "profiles": {
+    "FULL_STACK_DEVELOPER": {
+      "sequence": ["SQL", "POSTGRESQL", "GIT"],
+      "result": "REJECTED"
+    },
+    "MACHINE_LEARNING_ENGINEER": {
+      "sequence": ["PYTHON", "PANDAS", "NUMPY", "TENSORFLOW", "PYTORCH", "MACHINE_LEARNING", "SQL", "POSTGRESQL", "GIT"],
+      "result": "ACCEPTED"
+    },
+    "CYBERSECURITY_ENGINEER": {
+      "sequence": ["PYTHON", "GIT"],
+      "result": "REJECTED"
+    },
+    "DATA_ENGINEER": {
+      "sequence": ["PYTHON", "SQL", "SPARK", "ETL", "POSTGRESQL", "GIT"],
+      "result": "ACCEPTED"
+    }
+  }
+}

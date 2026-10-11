@@ -1,0 +1,22 @@
+{
+  "resume": "mary_jane_watson.txt",
+  "name": "Mary Jane Watson",
+  "profiles": {
+    "FULL_STACK_DEVELOPER": {
+      "sequence": ["SQL", "GIT"],
+      "result": "REJECTED"
+    },
+    "MACHINE_LEARNING_ENGINEER": {
+      "sequence": ["PYTHON", "PANDAS", "NUMPY", "SCIKIT_LEARN", "TENSORFLOW", "SQL", "GIT"],
+      "result": "ACCEPTED"
+    },
+    "CYBERSECURITY_ENGINEER": {
+      "sequence": ["PYTHON", "GIT"],
+      "result": "REJECTED"
+    },
+    "DATA_ENGINEER": {
+      "sequence": ["PYTHON", "SQL", "GIT"],
+      "result": "REJECTED"
+    }
+  }
+}
