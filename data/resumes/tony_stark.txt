@@ -1,0 +1,13 @@
+Tony Stark
+tony@starkindustries.com
++1 646 555 0110
+
+Summary
+6 years of experience in machine learning and data engineering.
+Built ETL jobs with Spark and trained models for predictive maintenance.
+
+Education
+Ph.D. in Computer Science.
+
+Technical Skills:
+Python, Pandas, NumPy, PyTorch, TensorFlow, SQL, PostgreSQL, Git.
