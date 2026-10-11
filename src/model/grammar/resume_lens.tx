@@ -182,6 +182,12 @@ EMAIL:
     /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/
 ;
 
+// Line comments in a profile:  // this is a comment
+// (textX ignores everything that matches the rule named Comment)
+Comment:
+    /\/\/.*$/
+;
+
 // Digits with optional "+", parentheses, spaces, dots or hyphens.
 // It must start with "+", "(" or a digit and end with a digit.
 PHONE:
