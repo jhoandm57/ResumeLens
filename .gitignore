@@ -1,3 +1,14 @@
+# Python
 __pycache__/
-.pytest_cache/
 *.pyc
+*.pyo
+
+# Pytest
+.pytest_cache/
+
+# IDE / editores
+.idea/
+.vscode/
+
+# Archivos generados por el pipeline (no se versionan)
+data/output/
