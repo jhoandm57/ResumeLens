@@ -1,0 +1,22 @@
+{
+  "resume": "peter_parker.txt",
+  "name": "Peter Parker",
+  "profiles": {
+    "FULL_STACK_DEVELOPER": {
+      "sequence": ["GIT"],
+      "result": "REJECTED"
+    },
+    "MACHINE_LEARNING_ENGINEER": {
+      "sequence": ["PYTHON", "GIT"],
+      "result": "REJECTED"
+    },
+    "CYBERSECURITY_ENGINEER": {
+      "sequence": ["PYTHON", "BASH", "LINUX", "NETWORKING", "TCP_IP", "CYBERSECURITY", "NMAP", "VULNERABILITY_ASSESSMENT", "SECURITY_AUTOMATION", "DOCKER", "GIT"],
+      "result": "ACCEPTED"
+    },
+    "DATA_ENGINEER": {
+      "sequence": ["PYTHON", "GIT"],
+      "result": "REJECTED"
+    }
+  }
+}

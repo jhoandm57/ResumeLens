@@ -1,0 +1,11 @@
+Mary Jane Watson
+mary.watson@email.com
+
+Summary
+2 years of experience developing predictive models and data-processing pipelines.
+
+Education
+Master's degree in Data Science.
+
+Technical Skills:
+Python, Pandas, NumPy, Scikit-learn, TensorFlow, SQL, Git.

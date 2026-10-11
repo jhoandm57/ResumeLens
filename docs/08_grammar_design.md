@@ -267,6 +267,10 @@ data/profiles/                # example profiles (.rl), valid and invalid
 tests/grammar/
     test_profile_generator.py
     test_profile_validator.py
+    test_profile_visualizer.py
+
+src/visualization/
+    profile_visualizer.py     # class ProfileVisualizer: textX model -> HTML
 ```
 
 ---
@@ -351,9 +355,46 @@ The text satisfies the grammar, but its content is not consistent with ResumeLen
 
 ## 9. Visualization Output
 
-> Implemented by `ProfileVisualizer` (`src/visualization/profile_visualizer.py`) in the next step of this stage. This section will be completed with it.
+Once a profile has been validated, `ProfileVisualizer` (`src/visualization/profile_visualizer.py`) builds a short **HTML** page of the candidate. This is the visualization output required by the statement.
 
-Only a **validated** profile is visualized: the HTML is built from the textX model (Section 6.2), never from the raw text. The visualization shows the name, contact information, experience entries, education, skills by category, and the result of each profile.
+### 9.1 Input: the textX model, not the text
+
+`ProfileVisualizer.render(model)` receives the **model** returned by `ProfileValidator` (Section 6.2), never the raw `.rl` text:
+
+```python
+model = ProfileValidator().validate(profile)     # grammar + semantic rules
+html = ProfileVisualizer().render(model)         # visualization
+```
+
+This guarantees that only profiles that satisfy the lexical, syntactic, and semantic rules are visualized. An invalid profile raises an error in `validate` and never reaches the visualizer. It also means the visualizer does not parse anything: it only reads the attributes of the model (`model.name`, `model.contact.emails`, `model.skills.categories`, ...).
+
+### 9.2 Content of the page
+
+| Section | Taken from the model | Shown as |
+| :--- | :--- | :--- |
+| Name | `model.name` | Page title (`<h1>`) |
+| Contact | `model.contact.emails`, `model.contact.phones` | List `Email: ...`, `Phone: ...` |
+| Experience | `model.experience.years`, `model.experience.entries` | Years in bold and one item per entry |
+| Education | `model.education.items` (`Degree` or `Field`) | List `Degree: BACHELOR`, `Field: COMPUTER_SCIENCE` |
+| Skills | `model.skills.categories` | Table with one row per category and one label per token |
+| Classification | `model.classification.results` | Table with the four profiles; the `ACCEPTED` rows are highlighted in green |
+
+The optional blocks of the grammar (`experience`, `education`, `skills`) are `None` in the model when they are missing; in that case the section shows *Not reported*. The page is a single self-contained file (the CSS is inside a `<style>` tag), so it can be opened directly in a browser.
+
+### 9.3 Escaping of special characters
+
+The values written by the candidate (name, emails, experience entries) can contain characters with a meaning in HTML. A `STRING` of the grammar accepts, for example, `"Tom <b>Admin</b> & Co"`. Every value is escaped with `html.escape` before it is inserted in the page:
+
+| Value in the model | Written in the HTML |
+| :--- | :--- |
+| `Tom <b>Admin</b> & Co` | `Tom &lt;b&gt;Admin&lt;/b&gt; &amp; Co` |
+| `2 years <script> & R&D` | `2 years &lt;script&gt; &amp; R&amp;D` |
+
+So the browser shows the text exactly as it was written and never interprets it as HTML or JavaScript.
+
+### 9.4 Example
+
+For `data/profiles/valid_wednesday_addams.rl` the page shows the name *Wednesday Addams*, her email and phone, 3 years of experience, `BACHELOR` and `COMPUTER_SCIENCE`, the tokens `JAVASCRIPT`, `REACT`, `NODE_JS`, `POSTGRESQL`, and `GIT` grouped by category, and the classification table with `FULL_STACK_DEVELOPER: ACCEPTED` highlighted and the other three profiles `REJECTED`.
 
 ---
 
@@ -374,3 +415,7 @@ Only a **validated** profile is visualized: the HTML is built from the textX mod
 | Lexical errors | Section 8.1 | `TextXSyntaxError` |
 | Syntactic errors | Section 8.2 | `TextXSyntaxError` |
 | Semantic errors | Section 8.3 | `TextXSemanticError`, with line and column |
+| Visualization content | Model of `valid_wednesday_addams.rl` / `valid_mary_jane_watson.rl` | HTML with the name, contact, experience, education, tokens by category, and the four results |
+| Accepted profile highlighted | Model of Mary Jane Watson | One `accepted` row (`MACHINE_LEARNING_ENGINEER`) and three `rejected` rows |
+| Missing blocks in the visualization | Minimal profile | Experience, education, and skills shown as *Not reported* |
+| Escaping of special characters | Name `Tom <b>Admin</b> & Co`, entry `2 years <script> & R&D` | `&lt;`, `&gt;`, `&amp;` in the HTML; no raw `<b>` or `<script>` |

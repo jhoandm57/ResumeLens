@@ -1,0 +1,22 @@
+{
+  "resume": "bruce_wayne.txt",
+  "name": "Bruce Wayne",
+  "profiles": {
+    "FULL_STACK_DEVELOPER": {
+      "sequence": ["TYPESCRIPT", "ANGULAR", "VUE", "POSTGRESQL", "GIT"],
+      "result": "REJECTED"
+    },
+    "MACHINE_LEARNING_ENGINEER": {
+      "sequence": ["POSTGRESQL", "GIT"],
+      "result": "REJECTED"
+    },
+    "CYBERSECURITY_ENGINEER": {
+      "sequence": ["GIT"],
+      "result": "REJECTED"
+    },
+    "DATA_ENGINEER": {
+      "sequence": ["POSTGRESQL", "GIT"],
+      "result": "REJECTED"
+    }
+  }
+}

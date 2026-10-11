@@ -1,0 +1,12 @@
+Wednesday Addams
+wednesday@mail.com
++57 300 1234567
+
+Summary
+3 years of experience developing web applications.
+
+Education
+B.Sc. in Computer Science.
+
+Technical Skills:
+JS, React.js, NodeJS, Postgres, Git.
