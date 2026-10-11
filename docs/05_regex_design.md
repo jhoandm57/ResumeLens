@@ -776,6 +776,23 @@ john.smith@gmail.com
 peter_parker@company.co
 ```
 
+#### Language recognized
+
+Let `Local = { A-Z, a-z, 0-9, ., _, %, +, - }`, `Domain = { A-Z, a-z, 0-9, ., - }`, and `Letter = { A-Z, a-z }`:
+
+```text
+L(EMAIL_PATTERN) = Local⁺ · @ · Domain⁺ · . · Letter{2,}
+```
+
+that is, one or more characters of the local part, the symbol `@`, one or more characters of the domain, a dot, and an extension of at least two letters, delimited by word boundaries.
+
+| Input | Result |
+| :--- | :--- |
+| `mary.watson@email.com` | extracted |
+| `dev.user@company.co` | extracted |
+| `mary.watson@email` | not extracted (no extension) |
+| `@email.com` | not extracted (no local part) |
+
 ### 4.3 Phone Number
 
 The phone-number pattern is:

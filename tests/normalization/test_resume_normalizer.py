@@ -93,6 +93,33 @@ def test_maximum_experience_is_kept():
     assert NORMALIZER.normalize(extracted).experience_years == 4
 
 
+def test_experience_entries_are_kept_as_written():
+    extracted = ExtractedData(
+        professional_experience=[
+            "2 years of experience",
+            "4 years experience",
+            "2 years of experience",       # duplicate
+        ],
+    )
+
+    result = NORMALIZER.normalize(extracted)
+
+    assert result.experience_entries == ["2 years of experience", "4 years experience"]
+    assert result.experience_years == 4
+
+
+def test_experience_entries_from_resume_text():
+    resume = "4 years of professional experience in Python. Also 5+ yrs experience with Git."
+
+    result = NORMALIZER.normalize(extract_resume_information(resume))
+
+    assert result.experience_entries == [
+        "4 years of professional experience",
+        "5+ yrs experience",
+    ]
+    assert result.experience_years == 5
+
+
 def test_unknown_values_are_ignored():
     extracted = ExtractedData(databases=["MySQL", "Postgres"])
 
@@ -104,6 +131,7 @@ def test_empty_resume():
 
     assert result.qualifications == []
     assert result.experience_years is None
+    assert result.experience_entries == []
     assert all(sequence == [] for sequence in result.profile_sequences.values())
 
 

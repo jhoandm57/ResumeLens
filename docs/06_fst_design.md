@@ -415,10 +415,13 @@ Example of rejection: `mysql` has no transition from `q0` with `m`, so it is rej
 ### 6.2 Programming languages — `M_LANG`
 
 ```text
+M_LANG = (Q, Σ, Γ, δ, ω, q0, F)
+
 V  = { javascript, js, typescript, python, sql, bash }
 Σ  = { a, b, c, e, h, i, j, l, n, o, p, q, r, s, t, v, y, # }
 Γ  = { JAVASCRIPT, TYPESCRIPT, PYTHON, SQL, BASH }
-|Q| = 36  (35 prefixes + qf)
+Q  = { q0, q1, ..., q34, qf }    (36 states: one per prefix of V, plus qf;
+                                      the prefix of each state is listed in 06a)
 q0 = q_ε
 F  = { qf }
 δ, ω: construction of Section 5 with the table of Section 4.1
@@ -478,11 +481,14 @@ flowchart LR
 ### 6.3 Frameworks and libraries — `M_FW`
 
 ```text
+M_FW = (Q, Σ, Γ, δ, ω, q0, F)
+
 V  = the 23 variants of Section 4.2
 Σ  = { space, -, ., a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, r, s, t, u, v, w, y, # }
 Γ  = { REACT, ANGULAR, VUE, NODE_JS, DJANGO, SPRING_BOOT, PANDAS, NUMPY,
        SCIKIT_LEARN, TENSORFLOW, PYTORCH, SPARK, AIRFLOW }
-|Q| = 140
+Q  = { q0, q1, ..., q138, qf }    (140 states: one per prefix of V, plus qf;
+                                      the prefix of each state is listed in 06a)
 q0 = q_ε
 F  = { qf }
 δ, ω: construction of Section 5 with the table of Section 4.2
@@ -529,11 +535,14 @@ The fragment shows the two main ideas of the design:
 ### 6.4 Tools and technologies — `M_TOOLS`
 
 ```text
+M_TOOLS = (Q, Σ, Γ, δ, ω, q0, F)
+
 V  = the 19 variants of Section 4.4
 Σ  = { space, /, a, b, c, d, e, g, h, i, k, l, m, n, o, p, r, s, t, u, w, x, # }
 Γ  = { GIT, DOCKER, KUBERNETES, NMAP, LINUX, TCP_IP, NETWORKING, ETL, ELT,
        DATA_PIPELINE, DATA_WAREHOUSING }
-|Q| = 89
+Q  = { q0, q1, ..., q87, qf }    (89 states: one per prefix of V, plus qf;
+                                      the prefix of each state is listed in 06a)
 q0 = q_ε
 F  = { qf }
 δ, ω: construction of Section 5 with the table of Section 4.4
@@ -578,11 +587,14 @@ flowchart LR
 ### 6.5 Other qualifications — `M_OTHER`
 
 ```text
+M_OTHER = (Q, Σ, Γ, δ, ω, q0, F)
+
 V  = the 10 variants of Section 4.5
 Σ  = { space, -, a, b, c, d, e, g, h, i, l, m, n, o, p, r, s, t, u, v, y, # }
 Γ  = { MACHINE_LEARNING, ML_MODEL_DEVELOPMENT, REST_API,
        VULNERABILITY_ASSESSMENT, CYBERSECURITY, SECURITY_AUTOMATION }
-|Q| = 137
+Q  = { q0, q1, ..., q135, qf }    (137 states: one per prefix of V, plus qf;
+                                      the prefix of each state is listed in 06a)
 q0 = q_ε
 F  = { qf }
 δ, ω: construction of Section 5 with the table of Section 4.5
@@ -599,11 +611,14 @@ This transducer shows why the `#` marker is necessary: `machine learning` is a p
 ### 6.6 Academic qualifications — `M_ACAD`
 
 ```text
+M_ACAD = (Q, Σ, Γ, δ, ω, q0, F)
+
 V  = the 20 variants of Section 4.6
 Σ  = { space, ', ., a, b, c, d, e, f, g, h, i, l, m, n, o, p, r, s, t, u, w, y, # }
 Γ  = { BACHELOR, MASTER, PHD, COMPUTER_SCIENCE, SOFTWARE_ENGINEERING,
        SYSTEMS_ENGINEERING, DATA_SCIENCE }
-|Q| = 107
+Q  = { q0, q1, ..., q105, qf }    (107 states: one per prefix of V, plus qf;
+                                      the prefix of each state is listed in 06a)
 q0 = q_ε
 F  = { qf }
 δ, ω: construction of Section 5 with the table of Section 4.6
@@ -837,7 +852,11 @@ class NormalizedData:
     tools_technologies: list[str]
     other_qualifications: list[str]
     academic_qualifications: list[str]
-    experience_years: int | None
+    experience_years: int | None        # maximum value produced by M_EXP
+
+    # Experience expressions as written in the resume (accepted by M_EXP,
+    # without duplicates); used by the candidate profile (stage 4)
+    experience_entries: list[str]
 
     # All qualification tokens without duplicates, grouped by category
     # (languages, frameworks, databases, tools, other); inside each
@@ -861,6 +880,7 @@ tools_technologies      = [GIT]
 other_qualifications    = []
 academic_qualifications = []
 experience_years        = 3
+experience_entries      = ["3 years of experience"]
 qualifications          = [JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT]
 profile_sequences       = {
     FULL_STACK_DEVELOPER:      [JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT],
@@ -1013,7 +1033,7 @@ Steps of `normalize`:
 
 1. Translate each list of `ExtractedData` with the transducer of its category (`normalize_list`).
 2. Remove rejected inputs (`None`) and duplicates, keeping the first appearance.
-3. Translate `professional_experience` with `M_EXP` and keep the maximum (`normalize_experience`).
+3. Translate `professional_experience` with `M_EXP` and keep the maximum (`normalize_experience`). The expressions accepted by `M_EXP` are also kept as they were written, without duplicates (`experience_entries`), so the candidate profile (stage 4) can list each professional experience.
 4. Build `qualifications` joining the technical categories without duplicates.
 5. Build `profile_sequences` with `sort_for_profile` for each profile.
 6. Copy the name, emails, and phones of `ExtractedData` without changes.
@@ -1086,6 +1106,7 @@ Sequence for MACHINE_LEARNING_ENGINEER
 | Rejected input | `mysql` in `M_DB` | No output (`None`) |
 | Experience | `5+ yrs experience` | `5` |
 | Several experiences | `2 years of experience`, `4 years experience` | `experience_years = 4` |
+| Experience entries | `2 years of experience`, `4 years experience`, `2 years of experience` | `experience_entries = [2 years of experience, 4 years experience]` (as written, no duplicates) |
 | Duplicates | `JS`, `JavaScript` | Only one `JAVASCRIPT` |
 | SQL in two categories | `SQL` as language and database | Only one `SQL` |
 | Canonical order | `Git, NodeJS, JS, Postgres, React.js` | `JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT` |
