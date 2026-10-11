@@ -2,11 +2,11 @@
 
 ## 1. Context
 
-Recruitment processes in software companies usually receive a large number of resumes for each open position. In an initial screening phase, recruiters must review every document to verify whether the candidate meets the minimum technical qualifications required by the role, such as specific programming languages, frameworks, databases, tools, academic background, or years of experience.
+When a software company opens a position, it can receive hundreds of resumes. Before any interview, someone has to read each one and check the basics: does the candidate know the languages, frameworks, databases, and tools the role needs? Do they have the right degree or enough years of experience?
 
-This manual review is slow, repetitive, and prone to inconsistencies. Two recruiters may evaluate the same resume differently, and the same recruiter may apply different criteria depending on fatigue or the order in which resumes are reviewed.
+Doing this by hand takes a lot of time and is not very consistent. Two recruiters can read the same resume and reach different conclusions, and the same person can be stricter in the morning than at the end of the day.
 
-Additionally, resumes are written as **unstructured or semi-structured text**. Each candidate decides how to organize the document and how to name their qualifications. As a consequence, the same qualification can appear under many different surface forms:
+There is also a more technical problem: resumes are free text. Every candidate organizes the document in their own way and writes technologies however they like. The same skill shows up in many forms:
 
 ```text
 JavaScript   Javascript   JS
@@ -16,22 +16,22 @@ PostgreSQL   Postgres
 TensorFlow   Tensor Flow
 ```
 
-A naive keyword search fails in this scenario: it either misses valid qualifications written with a different variant, or it requires the recruiter to anticipate every possible way of writing each technology.
+A simple keyword search does not work well here. If you search for "JavaScript", you miss the candidate who wrote "JS". To catch everything, the recruiter would need to know in advance every way people write every technology.
 
 ---
 
 ## 2. Problem Statement
 
-Given a resume written in natural, unstructured text and a set of predefined professional profiles (Full Stack Developer, Machine Learning Engineer, Cybersecurity Engineer, and Data Engineer), the problem is to **automatically and deterministically determine whether the qualifications expressed in the resume satisfy the qualification pattern required by each profile**, and to produce a structured candidate profile that summarizes the result.
+We have a resume in plain text and four professional profiles: Full Stack Developer, Machine Learning Engineer, Cybersecurity Engineer, and Data Engineer. We want to know, automatically and always with the same criterion, whether the qualifications written in the resume satisfy the pattern that each profile requires. We also want a structured summary of the candidate with that result.
 
-To solve this, ResumeLens must:
+We split the problem into four steps, and each one uses a formal language model:
 
-1. Identify and extract relevant information from free text, even when it appears with different formats, capitalizations, or spellings (**regular expressions**).
-2. Transform the different variants of the same qualification into a single canonical representation (**finite-state transducers**).
-3. Decide, with a formal and verifiable criterion, whether the normalized qualifications of the candidate belong to the language of accepted qualification patterns of a profile (**finite automata**).
-4. Represent the extracted information, the normalized qualifications, and the classification decisions in a structured and syntactically validated format (**context-free grammar with textX**).
+1. **Find the information.** Locate names, contact data, skills, degrees, and experience in the text, no matter the capitalization or spelling. For this we use **regular expressions**.
+2. **Unify the variants.** Turn `JS`, `Javascript`, and `JavaScript` into a single token, `JAVASCRIPT`. For this we use **finite-state transducers**.
+3. **Check the profiles.** Decide whether the candidate's normalized skills form an accepted pattern for each profile. For this we use **finite automata**, so the decision is formal and can be verified.
+4. **Describe the candidate.** Write the result in a small language of our own, check that it is well formed, and show it as a short HTML page. For this we use a **context-free grammar implemented with textX**.
 
-The system **does not make hiring decisions**. Its purpose is to support the initial technical screening by verifying, in a transparent and reproducible way, whether a candidate meets the minimum requirements defined for a profile.
+ResumeLens **does not decide who gets hired**. It only helps with the first technical filter, and it does it in a way that anyone can repeat and check.
 
 ---
 
@@ -39,15 +39,16 @@ The system **does not make hiring decisions**. Its purpose is to support the ini
 
 ### 3.1 General Objective
 
-Design and implement ResumeLens, a resume-screening system based on formal languages and automata, capable of extracting, normalizing, and classifying the technical qualifications of a candidate against predefined professional profiles in a deterministic and explainable way.
+Build ResumeLens, a resume-screening tool based on formal languages and automata that extracts, normalizes, and classifies a candidate's technical qualifications against predefined profiles, giving the same answer every time and explaining why.
 
 ### 3.2 Specific Objectives
 
-1. Design and implement regular expressions that extract contact information, technical skills, academic qualifications, and years of experience from unstructured resume text.
-2. Design and implement finite-state transducers that normalize the extracted qualifications into canonical tokens.
-3. Design and implement finite automata that recognize the accepted qualification patterns of each reference profile.
-4. Design a context-free grammar, implemented with textX, that defines a language for structured candidate profiles.
-5. Validate each stage with unit tests and the complete pipeline with integration tests based on representative resumes.
+1. Write regular expressions that extract contact data, technical skills, academic degrees, and years of experience from resume text.
+2. Build finite-state transducers that convert the extracted skills into canonical tokens.
+3. Build one finite automaton per profile that recognizes its accepted qualification patterns.
+4. Define a context-free grammar with textX for candidate profiles. It must reject profiles with lexical, syntactic, or semantic errors, and every valid profile must be shown as an HTML page.
+5. Offer a command-line entry point (`python -m src.pipeline`) that runs a resume through the four stages and prints what each stage produced.
+6. Test each stage on its own with unit tests, and the whole pipeline with end-to-end tests on example resumes.
 
 ---
 
@@ -55,16 +56,18 @@ Design and implement ResumeLens, a resume-screening system based on formal langu
 
 ### 4.1 In Scope
 
-- Resumes written in English and provided as plain text.
-- The vocabulary of qualifications defined for the four reference profiles.
-- Explicit experience expressions such as `3 years of experience` or `5+ yrs experience`.
-- Variations in capitalization, spacing, and punctuation of known qualifications.
-- Binary classification (`ACCEPTED` / `REJECTED`) per profile.
+- Resumes in English, saved as plain-text files (`.txt`), one resume per file. The program can process one file or every `.txt` file in a folder.
+- The skills vocabulary we defined for the four profiles.
+- Experience written explicitly, like `3 years of experience` or `5+ yrs experience`.
+- Differences in capitalization, spacing, and punctuation of the skills we know.
+- An `ACCEPTED` / `REJECTED` answer for each profile. The four profiles are checked separately, so one resume can be accepted in several profiles or in none.
+- For every resume, two output files: the candidate profile in our language (`.rl`), validated with textX, and its HTML page (`.html`). If the profile is not valid, the program reports the error with its line and column and does not create the HTML.
 
 ### 4.2 Out of Scope
 
-- Reading PDF, DOCX, or image files (OCR).
-- Resumes written in languages other than English.
-- Inferring experience from date ranges (e.g., `2021 – 2024`) or job descriptions.
-- Semantic understanding of the text or recognition of qualifications outside the defined vocabulary.
-- Ranking candidates, scoring them, or making hiring decisions.
+- Reading PDF, Word, or image files (no OCR).
+- Resumes in languages other than English.
+- Calculating experience from dates (for example `2021 – 2024`) or from job descriptions.
+- Understanding the meaning of the text, or recognizing skills that are not in our vocabulary.
+- A graphical interface. The program runs from the command line, and the HTML page is its visual output.
+- Ranking or scoring candidates, or making hiring decisions.
