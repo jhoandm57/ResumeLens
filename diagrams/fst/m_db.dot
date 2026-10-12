@@ -1,0 +1,30 @@
+digraph M_DB {
+    rankdir=LR;
+    node [shape=circle, fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10];
+    start [shape=point];
+    qf [shape=doublecircle];
+    start -> q0;
+    "q0" -> "q1" [label="p / ε"];
+    "q1" -> "q2" [label="o / ε"];
+    "q2" -> "q3" [label="s / ε"];
+    "q3" -> "q4" [label="t / ε"];
+    "q4" -> "q5" [label="g / ε"];
+    "q5" -> "q6" [label="r / ε"];
+    "q6" -> "q7" [label="e / ε"];
+    "q7" -> "q8" [label="s / ε"];
+    "q8" -> "q9" [label="q / ε"];
+    "q9" -> "q10" [label="l / ε"];
+    "q10" -> "qf" [label="# / POSTGRESQL"];
+    "q8" -> "qf" [label="# / POSTGRESQL"];
+    "q0" -> "q11" [label="n / ε"];
+    "q11" -> "q12" [label="o / ε"];
+    "q12" -> "q13" [label="s / ε"];
+    "q13" -> "q14" [label="q / ε"];
+    "q14" -> "q15" [label="l / ε"];
+    "q15" -> "qf" [label="# / NOSQL"];
+    "q0" -> "q16" [label="s / ε"];
+    "q16" -> "q17" [label="q / ε"];
+    "q17" -> "q18" [label="l / ε"];
+    "q18" -> "qf" [label="# / SQL"];
+}

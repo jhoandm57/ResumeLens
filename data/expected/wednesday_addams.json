@@ -1,0 +1,22 @@
+{
+  "resume": "wednesday_addams.txt",
+  "name": "Wednesday Addams",
+  "profiles": {
+    "FULL_STACK_DEVELOPER": {
+      "sequence": ["JAVASCRIPT", "REACT", "NODE_JS", "POSTGRESQL", "GIT"],
+      "result": "ACCEPTED"
+    },
+    "MACHINE_LEARNING_ENGINEER": {
+      "sequence": ["POSTGRESQL", "GIT"],
+      "result": "REJECTED"
+    },
+    "CYBERSECURITY_ENGINEER": {
+      "sequence": ["GIT"],
+      "result": "REJECTED"
+    },
+    "DATA_ENGINEER": {
+      "sequence": ["POSTGRESQL", "GIT"],
+      "result": "REJECTED"
+    }
+  }
+}

@@ -1,1 +1,184 @@
-# Integradora1_Discretas3
+# ResumeLens: Formal Language-Based Resume Screening
+
+ResumeLens processes résumés written in plain text and determines whether the qualifications explicitly written in each résumé satisfy the qualification patterns of four professional profiles. Each stage of the system applies a model of formal language theory:
+
+| Stage | Formal model | Library |
+| :--- | :--- | :--- |
+| 1. Information extraction | Regular expressions | `re` |
+| 2. Qualification normalization | Finite-state transducers | `pyformlang` |
+| 3. Qualification pattern recognition | Finite automata (DFA) | `pyformlang` |
+| 4. Candidate profile language | Context-free grammar (DSL) + HTML visualization | `textX` |
+
+Supported profiles: **Full Stack Developer** and **Machine Learning Engineer** (defined by the statement), and **Cybersecurity Engineer** and **Data Engineer** (defined by the team).
+
+ResumeLens does **not** rank candidates or make hiring decisions: it only checks whether the qualifications found in a résumé satisfy formally defined patterns.
+
+Integrative Task 1 — Computación y Estructuras Discretas III, Universidad Icesi, 2026-2.
+
+---
+
+## Team
+
+| Name | GitHub |
+| :--- | :--- |
+| Jhoan | [@jhoandm57](https://github.com/jhoandm57) |
+| Juan Meza | [@juanmeza850](https://github.com/juanmeza850) |
+| Santiago Samboni | [@samboni72](https://github.com/samboni72) |
+
+**IDE:** PyCharm.
+
+---
+
+## Requirements
+
+- Python **3.10** or later (the code uses the `X | None` type syntax).
+- The libraries of `requirements.txt`: `pyformlang`, `textx`, `streamlit`, `pytest`.
+
+## Installation
+
+From the root of the project:
+
+```bash
+pip install -r requirements.txt
+```
+
+On Windows, if `pip` is not recognized, use `py -m pip install -r requirements.txt` (and `py` instead of `python` in the commands below).
+
+---
+
+## Usage
+
+ResumeLens can be used in two ways, both from the **root of the project**: the **web application** (Streamlit) and the **command line interface** (`src/pipeline.py`). Both run exactly the same four stages.
+
+### Web application
+
+**Online:** <https://APP-NAME.streamlit.app> *(link of the deployed app)*
+
+**Locally:**
+
+```bash
+streamlit run streamlit_app.py
+```
+
+It opens in the browser at `http://localhost:8501`. In the application:
+
+1. Enter the résumé: **upload a `.txt` file**, **paste the text**, or **choose one of the example résumés** of `data/resumes/`.
+2. Press **Analyze**.
+3. The page shows the accepted profiles, the **HTML visualization of the candidate**, buttons to **download** the `.html` and the `.rl` profile, and one section per stage with what it produced (extracted values, transducer outputs and sorted sequences, the result of each automaton, and the profile written in the DSL).
+
+### Command line
+
+The command line interface is `src/pipeline.py`.
+
+Process one résumé:
+
+```bash
+python -m src.pipeline data/resumes/wednesday_addams.txt
+```
+
+Process every `.txt` résumé of a folder:
+
+```bash
+python -m src.pipeline data/resumes
+```
+
+Choose another output folder (default: `data/output`):
+
+```bash
+python -m src.pipeline data/resumes -o my_output
+```
+
+For each résumé the console shows a summary of every stage, and two files are written:
+
+| File | Content |
+| :--- | :--- |
+| `data/output/<name>.rl` | Candidate profile written in the ResumeLens DSL |
+| `data/output/<name>.html` | Visualization of the candidate (open it with a browser) |
+
+Example of the console output (abbreviated):
+
+```text
+[Stage 1] Extraction (regular expressions)
+  Name ........... Wednesday Addams
+  Languages ...... JS
+  Frameworks ..... React.js, NodeJS
+  ...
+[Stage 2] Normalization (finite-state transducers)
+  Tokens ......... JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
+[Stage 3] Classification (finite automata)
+  FULL_STACK_DEVELOPER       ACCEPTED  <- JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
+  MACHINE_LEARNING_ENGINEER  REJECTED  <- POSTGRESQL, GIT
+  ...
+[Stage 4] Candidate profile (textX)
+  Validation ..... VALID
+  Visualization .. .../data/output/wednesday_addams.html
+```
+
+If a generated profile does not satisfy the grammar, the error is shown with its line and column and the HTML is not generated.
+
+### Example résumés
+
+`data/resumes/` contains six résumés used for the demo and the end-to-end tests:
+
+| Résumé | Accepted profiles |
+| :--- | :--- |
+| `wednesday_addams.txt` | Full Stack Developer (statement example) |
+| `mary_jane_watson.txt` | Machine Learning Engineer (statement example) |
+| `peter_parker.txt` | Cybersecurity Engineer |
+| `clark_kent.txt` | Data Engineer |
+| `tony_stark.txt` | Machine Learning Engineer and Data Engineer |
+| `bruce_wayne.txt` | none (no backend technology) |
+
+---
+
+## Tests
+
+```bash
+python -m pytest                              # all the tests
+python -m pytest tests/grammar -v             # one stage
+python -m pytest tests/test_end_to_end.py -v  # complete pipeline on the example résumés
+```
+
+The test design is described in [`docs/09_test_design.md`](docs/09_test_design.md).
+
+---
+
+## Project Structure
+
+```text
+ResumeLens/
+├── streamlit_app.py             # entry point (web application)
+├── .streamlit/config.toml       # configuration of the web application
+├── src/
+│   ├── pipeline.py              # entry point (command line interface)
+│   ├── model/
+│   │   ├── extraction/          # Stage 1 – regular expressions
+│   │   ├── normalization/       # Stage 2 – finite-state transducers
+│   │   ├── classification/      # Stage 3 – finite automata
+│   │   └── grammar/             # Stage 4 – textX grammar, generator, validator
+│   └── visualization/           # Stage 4 – HTML visualization
+├── tests/                       # unit tests by stage + end-to-end tests
+├── data/
+│   ├── resumes/                 # example résumés (.txt)
+│   ├── expected/                # expected result of each example résumé (.json)
+│   ├── profiles/                # hand-written profiles (.rl), valid and invalid
+│   └── output/                  # files generated by the pipeline (not versioned)
+├── diagrams/                    # transducer and automaton diagrams (.dot, .svg)
+└── docs/                        # design documents
+```
+
+## Documentation
+
+| Document | Content |
+| :--- | :--- |
+| [`01_problem_definition.md`](docs/01_problem_definition.md) | Context, problem statement, objectives, and scope |
+| [`02_literature_review.md`](docs/02_literature_review.md) | Literature review of each formal model applied to résumé screening |
+| [`03_system_design.md`](docs/03_system_design.md) | Architecture of the pipeline, modules with their inputs and outputs, and general design decisions |
+| [`04_profiles.md`](docs/04_profiles.md) | The four professional profiles and their qualifications |
+| [`05_regex_design.md`](docs/05_regex_design.md) | Stage 1: regular expression of each category and the language it recognizes |
+| [`06_fst_design.md`](docs/06_fst_design.md) | Stage 2: design of the transducers and canonical vocabulary |
+| [`06a_fst_formal_definitions.md`](docs/06a_fst_formal_definitions.md) | Stage 2: formal 7-tuple of every transducer |
+| [`07_automata_design.md`](docs/07_automata_design.md) | Stage 3: profile patterns, 5-tuple and type of every automaton |
+| [`08_grammar_design.md`](docs/08_grammar_design.md) | Stage 4: EBNF grammar, terminals and non-terminals, textX implementation, validation, and visualization |
+| [`09_test_design.md`](docs/09_test_design.md) | Test strategy, test cases by stage, and end-to-end scenarios |
+| [`ai_usage.md`](docs/ai_usage.md) | Use of AI tools during the project |

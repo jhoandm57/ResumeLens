@@ -1,0 +1,13 @@
+Clark Kent
+clark.kent@dailyplanet.com
++1 312 555 0198
+
+Summary
+5 years of experience building batch data pipelines for a newspaper.
+Designed ETL processes that load the data warehouse every night.
+
+Education
+B.Sc. in Software Engineering.
+
+Technical Skills:
+Python, SQL, Apache Spark, Apache Airflow, PostgreSQL, Git.

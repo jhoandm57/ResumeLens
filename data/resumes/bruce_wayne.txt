@@ -1,0 +1,11 @@
+Bruce Wayne
+bruce.wayne@wayneenterprises.com
+
+Summary
+1 year of experience building user interfaces.
+
+Education
+Bachelor in Computer Science.
+
+Technical Skills:
+TypeScript, Angular, Vue, PostgreSQL, Git.

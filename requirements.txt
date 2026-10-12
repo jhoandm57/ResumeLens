@@ -1,0 +1,4 @@
+pyformlang
+textx
+streamlit>=1.30
+pytest

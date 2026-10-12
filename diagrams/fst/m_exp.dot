@@ -1,0 +1,13 @@
+digraph M_EXP {
+    rankdir=LR;
+    node [shape=circle, fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10];
+    start [shape=point];
+    qf [shape=doublecircle];
+    start -> q0;
+    "q0" -> "q1" [label="d / d\n(d = 0-9, copy)"];
+    "q1" -> "q1" [label="d / d"];
+    "q1" -> "q2" [label="c / ε\n(c = a-z, +, ␣)"];
+    "q2" -> "q2" [label="c / ε\nd / ε"];
+    "q2" -> "qf" [label="# / ε"];
+}

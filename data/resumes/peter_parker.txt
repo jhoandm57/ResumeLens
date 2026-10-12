@@ -1,0 +1,14 @@
+Peter Parker
+peter.parker@dailybugle.com
++1 212 555 0147
+
+Summary
+4 years of experience protecting the infrastructure of a news company.
+Performed vulnerability assessment of internal servers and wrote
+security automation scripts.
+
+Education
+Bachelor's degree in Systems Engineering.
+
+Technical Skills:
+Python, Bash, Linux, TCP/IP, Networking, Nmap, Cyber Security, Docker, Git.

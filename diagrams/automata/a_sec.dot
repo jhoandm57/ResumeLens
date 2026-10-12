@@ -1,0 +1,25 @@
+digraph A_SEC {
+    rankdir=LR;
+    node [shape=circle, style=filled, fillcolor="#dbe8f7", fontname="Helvetica"];
+    edge [fontname="Helvetica", fontsize=10];
+    start [shape=point, style=invis];
+    q6 [shape=doublecircle, fillcolor="#d5ecd4"];
+    start -> q0;
+    q0 -> q1 [label="PYTHON"];
+    q0 -> q1 [label="BASH"];
+    q1 -> q2 [label="LINUX"];
+    q2 -> q3 [label="NETWORKING"];
+    q2 -> q3 [label="TCP_IP"];
+    q3 -> q4 [label="CYBERSECURITY"];
+    q3 -> q4 [label="NMAP"];
+    q3 -> q4 [label="VULNERABILITY_ASSESSMENT"];
+    q3 -> q4 [label="SECURITY_AUTOMATION"];
+    q4 -> q5 [label="DOCKER"];
+    q4 -> q5 [label="KUBERNETES"];
+    q5 -> q6 [label="GIT"];
+    q4 -> q6 [label="GIT"];
+    q1 -> q1 [label="PYTHON\nBASH"];
+    q3 -> q3 [label="NETWORKING\nTCP_IP"];
+    q4 -> q4 [label="CYBERSECURITY\nNMAP\nVULNERABILITY_ASSESSMENT\nSECURITY_AUTOMATION"];
+    q5 -> q5 [label="DOCKER\nKUBERNETES"];
+}

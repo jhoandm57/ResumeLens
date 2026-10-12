@@ -1,0 +1,16 @@
+# Streamlit configuration of the ResumeLens web application.
+
+[theme]
+base = "light"
+primaryColor = "#1b7a33"        # same green used for ACCEPTED in the HTML
+backgroundColor = "#fafafa"
+secondaryBackgroundColor = "#e8eef7"
+textColor = "#222222"
+font = "sans serif"
+
+[server]
+# Résumés are small plain-text files.
+maxUploadSize = 2
+
+[browser]
+gatherUsageStats = false
