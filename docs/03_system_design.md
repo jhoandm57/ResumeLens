@@ -79,6 +79,8 @@ Each stage has only one responsibility: extraction does not decide equivalences,
 
 ```text
 ResumeLens/
+├── streamlit_app.py                    # entry point (web application, Streamlit)
+├── .streamlit/config.toml              # configuration of the web application
 ├── src/
 │   ├── pipeline.py                     # entry point (command line UI)
 │   ├── model/
@@ -112,7 +114,7 @@ ResumeLens/
 └── docs/                               # design documents
 ```
 
-The code follows the separation **model / visualization / entry point**: `src/model` contains the four formal models and does not print or write files; `src/visualization` only builds the HTML; `src/pipeline.py` connects everything and is the only module that reads résumés, writes files, and prints to the console.
+The code follows the separation **model / visualization / entry points**: `src/model` contains the four formal models and does not print or write files; `src/visualization` only builds the HTML; `src/pipeline.py` connects everything (it is the only module that reads résumés, writes files, and prints to the console), and `streamlit_app.py` is a web interface on top of `ResumePipeline`, so the web application and the command line run exactly the same stages.
 
 ---
 
@@ -173,6 +175,16 @@ The grammar is in `resume_lens.tx`. Design: [`08_grammar_design.md`](08_grammar_
 
 If the generated profile does not satisfy the grammar, the error is shown with its line and column and the HTML is not generated.
 
+### 3.6 Web application (`streamlit_app.py`)
+
+| Element | Description |
+| :--- | :--- |
+| Input | The résumé as an uploaded `.txt` file (UTF-8 or Latin-1), pasted text, or one of the example résumés of `data/resumes/` |
+| Processing | `ResumePipeline.process_text` (Section 3.5). The pipeline is built once per server (`st.cache_resource`), and the result is kept in `st.session_state`, so it stays on the page when the user downloads a file or opens a section |
+| Output | Accepted profiles, the HTML of the candidate (embedded in the page), download buttons for the `.html` and the `.rl`, and one section per stage: extracted values (stage 1), output of each transducer and sorted sequences (stage 2), result of each automaton (stage 3), and the DSL profile with its validation (stage 4) |
+
+Run locally with `streamlit run streamlit_app.py`. The configuration (theme and maximum upload size) is in `.streamlit/config.toml`.
+
 ---
 
 ## 4. Data Types Between Stages
@@ -216,10 +228,12 @@ The data structures are `dataclasses`, so every stage can be tested independentl
 
 | | Location | Format |
 | :--- | :--- | :--- |
-| Input | `data/resumes/*.txt` (or any path) | Résumé in plain text, in English |
+| Input | `data/resumes/*.txt` (or any path) | Résumé in plain text, in English (command line) |
+| Input | Web application | Uploaded `.txt` file, pasted text, or an example résumé |
 | Output | `data/output/<name>.rl` | Candidate profile in the DSL |
 | Output | `data/output/<name>.html` | Visualization of the candidate (only if the profile is valid) |
 | Output | Console | Summary of every stage: extracted values, normalized tokens, sequence and result of each profile, validation |
+| Output | Web application | HTML of the candidate, downloads of the `.html` and `.rl`, and the output of each stage |
 
 ---
 

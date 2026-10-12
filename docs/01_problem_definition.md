@@ -47,7 +47,7 @@ Build ResumeLens, a resume-screening tool based on formal languages and automata
 2. Build finite-state transducers that convert the extracted skills into canonical tokens.
 3. Build one finite automaton per profile that recognizes its accepted qualification patterns.
 4. Define a context-free grammar with textX for candidate profiles. It must reject profiles with lexical, syntactic, or semantic errors, and every valid profile must be shown as an HTML page.
-5. Offer a command-line entry point (`python -m src.pipeline`) that runs a resume through the four stages and prints what each stage produced.
+5. Offer two entry points that run a resume through the four stages: a command-line interface (`python -m src.pipeline`) that prints what each stage produced, and a web application (Streamlit) where a resume is uploaded or pasted and the HTML of the candidate is shown together with the output of each stage.
 6. Test each stage on its own with unit tests, and the whole pipeline with end-to-end tests on example resumes.
 
 ---
@@ -69,5 +69,5 @@ Build ResumeLens, a resume-screening tool based on formal languages and automata
 - Resumes in languages other than English.
 - Calculating experience from dates (for example `2021 – 2024`) or from job descriptions.
 - Understanding the meaning of the text, or recognizing skills that are not in our vocabulary.
-- A graphical interface. The program runs from the command line, and the HTML page is its visual output.
+- A desktop application. The program is used from the command line or from the web application (Streamlit).
 - Ranking or scoring candidates, or making hiring decisions.

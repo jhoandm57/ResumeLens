@@ -32,7 +32,7 @@ Integrative Task 1 — Computación y Estructuras Discretas III, Universidad Ice
 ## Requirements
 
 - Python **3.10** or later (the code uses the `X | None` type syntax).
-- The libraries of `requirements.txt`: `pyformlang`, `textx`, `pytest`.
+- The libraries of `requirements.txt`: `pyformlang`, `textx`, `streamlit`, `pytest`.
 
 ## Installation
 
@@ -48,7 +48,27 @@ On Windows, if `pip` is not recognized, use `py -m pip install -r requirements.t
 
 ## Usage
 
-The program is run from the **root of the project** with the command line interface `src/pipeline.py`.
+ResumeLens can be used in two ways, both from the **root of the project**: the **web application** (Streamlit) and the **command line interface** (`src/pipeline.py`). Both run exactly the same four stages.
+
+### Web application
+
+**Online:** <https://APP-NAME.streamlit.app> *(link of the deployed app)*
+
+**Locally:**
+
+```bash
+streamlit run streamlit_app.py
+```
+
+It opens in the browser at `http://localhost:8501`. In the application:
+
+1. Enter the résumé: **upload a `.txt` file**, **paste the text**, or **choose one of the example résumés** of `data/resumes/`.
+2. Press **Analyze**.
+3. The page shows the accepted profiles, the **HTML visualization of the candidate**, buttons to **download** the `.html` and the `.rl` profile, and one section per stage with what it produced (extracted values, transducer outputs and sorted sequences, the result of each automaton, and the profile written in the DSL).
+
+### Command line
+
+The command line interface is `src/pipeline.py`.
 
 Process one résumé:
 
@@ -127,6 +147,8 @@ The test design is described in [`docs/09_test_design.md`](docs/09_test_design.m
 
 ```text
 ResumeLens/
+├── streamlit_app.py             # entry point (web application)
+├── .streamlit/config.toml       # configuration of the web application
 ├── src/
 │   ├── pipeline.py              # entry point (command line interface)
 │   ├── model/
