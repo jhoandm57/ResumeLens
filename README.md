@@ -15,6 +15,8 @@ ResumeLens does **not** rank candidates or make hiring decisions: it only checks
 
 Integrative Task 1 — Computación y Estructuras Discretas III, Universidad Icesi, 2026-2.
 
+**Try it online:** <https://resumelens-integradora.streamlit.app/> — upload or paste a résumé and see the HTML of the candidate.
+
 ---
 
 ## Team
@@ -52,7 +54,7 @@ ResumeLens can be used in two ways, both from the **root of the project**: the *
 
 ### Web application
 
-**Online:** <https://APP-NAME.streamlit.app> *(link of the deployed app)*
+**Online:** <https://resumelens-integradora.streamlit.app/>
 
 **Locally:**
 
