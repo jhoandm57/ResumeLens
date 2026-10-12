@@ -150,6 +150,8 @@ Each profile is defined by **6 ordered groups** (`src/model/classification/profi
 
 The four profiles end with the group *Version control* (`GIT`), and every automaton has the accepting state `q6`, reached only after reading `GIT`.
 
+In Section 5, the language of each automaton is written as a regular expression over tokens: `⁺` = one or more, `*` = zero or more, `?` = optional.
+
 ---
 
 ## 5. Automata
@@ -169,7 +171,7 @@ A candidate satisfies the Full Stack Developer pattern if the résumé shows the
 | 5 | Database | `SQL`, `POSTGRESQL`, `NOSQL` | mandatory |
 | 6 | Version control | `GIT` | mandatory |
 
-Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
+Language recognized:
 
 ```text
 L(A_FS) = (JAVASCRIPT | TYPESCRIPT)⁺ · (REACT | ANGULAR | VUE)⁺ · (NODE_JS | DJANGO | SPRING_BOOT)⁺ · (REST_API)? · (SQL | POSTGRESQL | NOSQL)⁺ · GIT
@@ -198,7 +200,7 @@ F  = { q6 }
 | `q5` | At least one token of the group *Database* has been read |
 | `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
+**Transition function δ** (one transition per token of the column *Tokens*; any pair not in the table is rejected):
 
 | From | Tokens | To | Meaning |
 | :--- | :--- | :--- | :--- |
@@ -214,11 +216,9 @@ F  = { q6 }
 | `q5` | `SQL` \| `POSTGRESQL` \| `NOSQL` | `q5` | loop: more tokens of the same group |
 | `q5` | `GIT` | `q6` | group 6 (Version control) |
 
-Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
-
 #### Type of automaton
 
-`A_FS` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q3` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
+`A_FS` is a **DFA**: one initial state (`q0`), no ε-transitions, and at most one next state for each (state, token). In `q3`, the tokens of the optional group and the tokens that skip it are different, so there is never a choice. δ is partial; missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
@@ -235,7 +235,6 @@ File: `diagrams/automata/a_fs.svg` (source: `diagrams/automata/a_fs.dot`).
 | Without backend | `JAVASCRIPT, REACT, POSTGRESQL, GIT` | `q0 --JAVASCRIPT--> q1 --REACT--> q2 --POSTGRESQL--> (no transition)` | **REJECTED** |
 | Without Git | `TYPESCRIPT, VUE, DJANGO, NOSQL` | `q0 --TYPESCRIPT--> q1 --VUE--> q2 --DJANGO--> q3 --NOSQL--> q5 (ends in q5 ∉ F)` | **REJECTED** |
 
-
 ### 5.2 Machine Learning Engineer — `A_ML`
 
 #### Profile pattern
@@ -251,7 +250,7 @@ A candidate satisfies the Machine Learning Engineer pattern if the résumé show
 | 5 | Database | `SQL`, `POSTGRESQL` | mandatory |
 | 6 | Version control | `GIT` | mandatory |
 
-Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
+Language recognized:
 
 ```text
 L(A_ML) = PYTHON · (PANDAS | NUMPY)⁺ · (SCIKIT_LEARN | TENSORFLOW | PYTORCH)⁺ · (MACHINE_LEARNING | ML_MODEL_DEVELOPMENT)* · (SQL | POSTGRESQL)⁺ · GIT
@@ -280,7 +279,7 @@ F  = { q6 }
 | `q5` | At least one token of the group *Database* has been read |
 | `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
+**Transition function δ** (one transition per token of the column *Tokens*; any pair not in the table is rejected):
 
 | From | Tokens | To | Meaning |
 | :--- | :--- | :--- | :--- |
@@ -296,11 +295,9 @@ F  = { q6 }
 | `q5` | `SQL` \| `POSTGRESQL` | `q5` | loop: more tokens of the same group |
 | `q5` | `GIT` | `q6` | group 6 (Version control) |
 
-Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
-
 #### Type of automaton
 
-`A_ML` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q3` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
+`A_ML` is a **DFA**: one initial state (`q0`), no ε-transitions, and at most one next state for each (state, token). In `q3`, the tokens of the optional group and the tokens that skip it are different, so there is never a choice. δ is partial; missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
@@ -317,7 +314,6 @@ File: `diagrams/automata/a_ml.svg` (source: `diagrams/automata/a_ml.dot`).
 | Without ML library | `PYTHON, PANDAS, SQL, GIT` | `q0 --PYTHON--> q1 --PANDAS--> q2 --SQL--> (no transition)` | **REJECTED** |
 | Without Python | `NUMPY, PYTORCH, SQL, GIT` | `q0 --NUMPY--> (no transition)` | **REJECTED** |
 
-
 ### 5.3 Cybersecurity Engineer — `A_SEC`
 
 #### Profile pattern
@@ -333,7 +329,7 @@ A candidate satisfies the Cybersecurity Engineer pattern if the résumé shows a
 | 5 | Containers | `DOCKER`, `KUBERNETES` | optional |
 | 6 | Version control | `GIT` | mandatory |
 
-Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
+Language recognized:
 
 ```text
 L(A_SEC) = (PYTHON | BASH)⁺ · LINUX · (NETWORKING | TCP_IP)⁺ · (CYBERSECURITY | NMAP | VULNERABILITY_ASSESSMENT | SECURITY_AUTOMATION)⁺ · (DOCKER | KUBERNETES)* · GIT
@@ -362,7 +358,7 @@ F  = { q6 }
 | `q5` | At least one token of the group *Containers* has been read |
 | `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
+**Transition function δ** (one transition per token of the column *Tokens*; any pair not in the table is rejected):
 
 | From | Tokens | To | Meaning |
 | :--- | :--- | :--- | :--- |
@@ -378,11 +374,9 @@ F  = { q6 }
 | `q5` | `GIT` | `q6` | group 6 (Version control) |
 | `q4` | `GIT` | `q6` | skips the optional group 5 (Containers) |
 
-Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
-
 #### Type of automaton
 
-`A_SEC` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q4` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
+`A_SEC` is a **DFA**: one initial state (`q0`), no ε-transitions, and at most one next state for each (state, token). In `q4`, the tokens of the optional group and the tokens that skip it are different, so there is never a choice. δ is partial; missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
@@ -399,7 +393,6 @@ File: `diagrams/automata/a_sec.svg` (source: `diagrams/automata/a_sec.dot`).
 | Without Linux | `PYTHON, TCP_IP, NMAP, GIT` | `q0 --PYTHON--> q1 --TCP_IP--> (no transition)` | **REJECTED** |
 | Without security | `PYTHON, LINUX, NETWORKING, DOCKER, GIT` | `q0 --PYTHON--> q1 --LINUX--> q2 --NETWORKING--> q3 --DOCKER--> (no transition)` | **REJECTED** |
 
-
 ### 5.4 Data Engineer — `A_DE`
 
 #### Profile pattern
@@ -415,7 +408,7 @@ A candidate satisfies the Data Engineer pattern if the résumé shows Python or 
 | 5 | Storage | `DATA_WAREHOUSING`, `POSTGRESQL`, `NOSQL` | mandatory |
 | 6 | Version control | `GIT` | mandatory |
 
-Language recognized (regular expression over tokens, `⁺` = one or more, `*` = zero or more, `?` = optional):
+Language recognized:
 
 ```text
 L(A_DE) = (PYTHON | SQL)⁺ · SPARK · (AIRFLOW)? · (ETL | ELT | DATA_PIPELINE)⁺ · (DATA_WAREHOUSING | POSTGRESQL | NOSQL)⁺ · GIT
@@ -444,7 +437,7 @@ F  = { q6 }
 | `q5` | At least one token of the group *Storage* has been read |
 | `q6` | At least one token of the group *Version control* has been read (accepting state) |
 
-**Transition function δ.** Each row represents one transition for each token of the column *Tokens*.
+**Transition function δ** (one transition per token of the column *Tokens*; any pair not in the table is rejected):
 
 | From | Tokens | To | Meaning |
 | :--- | :--- | :--- | :--- |
@@ -459,11 +452,9 @@ F  = { q6 }
 | `q5` | `DATA_WAREHOUSING` \| `POSTGRESQL` \| `NOSQL` | `q5` | loop: more tokens of the same group |
 | `q5` | `GIT` | `q6` | group 6 (Version control) |
 
-Any pair (state, token) that is not in the table has no transition: the automaton stops and the sequence is **rejected**.
-
 #### Type of automaton
 
-`A_DE` is a **DFA (deterministic finite automaton)**: it has only one initial state (`q0`); every transition reads exactly one token, so there are no ε-transitions; and from each state each token has **at most one** next state. For example, from `q2` the tokens of the optional group and the tokens that skip it are different, so there is never a choice between two states. δ is a partial function: the missing transitions go to an implicit trap state (Section 3.6).
+`A_DE` is a **DFA**: one initial state (`q0`), no ε-transitions, and at most one next state for each (state, token). In `q2`, the tokens of the optional group and the tokens that skip it are different, so there is never a choice. δ is partial; missing transitions go to an implicit trap state (Section 3.6).
 
 #### Transition diagram
 
@@ -482,91 +473,36 @@ File: `diagrams/automata/a_de.svg` (source: `diagrams/automata/a_de.dot`).
 
 ---
 
-## 6. Implementation
+## 6. Implementation (pyformlang)
 
-### 6.1 Files
+| File | Responsibility |
+| :--- | :--- |
+| `src/model/classification/profile_vocabulary.py` | `ProfileVocabulary`: the tokens of each group (`GROUPS`) and the optional group of each profile (`OPTIONAL`). Stage 2 also uses it to sort the tokens. |
+| `src/model/classification/profile_automata.py` | `ProfileAutomata`: builds the four DFAs with `pyformlang` (`DeterministicFiniteAutomaton`, `State`, `Symbol`). `accepts(profile, sequence)` runs one automaton; `classify(normalized)` runs the four and returns `{profile: "ACCEPTED" / "REJECTED"}`. |
+| `diagrams/automata/a_fs, a_ml, a_sec, a_de` | Transition diagrams (`.svg`, Graphviz source `.dot`), generated from the transitions of `ProfileAutomata`. |
+| `tests/classification/test_profile_automata.py` | Tests of Section 7. |
 
-```text
-src/model/classification/
-    __init__.py
-    profile_vocabulary.py      # class ProfileVocabulary: tokens of each group of each profile
-    profile_automata.py        # class ProfileAutomata: the four DFAs (pyformlang) and classify()
-
-diagrams/automata/
-    a_fs, a_ml, a_sec, a_de    # transition diagrams (.svg and Graphviz .dot)
-
-tests/classification/
-    test_profile_automata.py
-```
-
-### 6.2 `ProfileVocabulary`
-
-It only defines data: one list per group, the list `GROUPS` with the 6 groups of each profile in order, and `OPTIONAL` with the optional group of each profile.
+Each automaton is built group by group. For example, part of `A_ML`:
 
 ```python
-class ProfileVocabulary:
-    ML_LANGUAGE = ["PYTHON"]
-    ML_DATA_LIBRARIES = ["PANDAS", "NUMPY"]
-    ML_LIBRARIES = ["SCIKIT_LEARN", "TENSORFLOW", "PYTORCH"]
-    ML_DEVELOPMENT = ["MACHINE_LEARNING", "ML_MODEL_DEVELOPMENT"]   # optional
-    ML_DATABASE = ["SQL", "POSTGRESQL"]
-    ML_VERSION_CONTROL = ["GIT"]
-    ...
-```
-
-### 6.3 `ProfileAutomata`
-
-Each automaton is written by hand with `pyformlang` (`DeterministicFiniteAutomaton`, `State`, `Symbol`), group by group. For example, `A_ML`:
-
-```python
-q0 = State("q0")
-q1 = State("q1")    # language read
-...
-q6 = State("q6")    # version control read
-
 dfa.add_start_state(q0)
 dfa.add_final_state(q6)
 
-# 1. Language: PYTHON
-self._add(p, dfa, q0, V.ML_LANGUAGE, q1)
-
-# 2. Data libraries: PANDAS | NUMPY
-self._add(p, dfa, q1, V.ML_DATA_LIBRARIES, q2)
-self._add(p, dfa, q2, V.ML_DATA_LIBRARIES, q2)        # loop
+self._add(p, dfa, q0, V.ML_LANGUAGE, q1)              # 1. PYTHON
+self._add(p, dfa, q1, V.ML_DATA_LIBRARIES, q2)        # 2. PANDAS | NUMPY
+self._add(p, dfa, q2, V.ML_DATA_LIBRARIES, q2)        #    loop
 ...
-# 5. Database: SQL | POSTGRESQL
-self._add(p, dfa, q4, V.ML_DATABASE, q5)
-self._add(p, dfa, q3, V.ML_DATABASE, q5)              # skips ML development
-self._add(p, dfa, q5, V.ML_DATABASE, q5)              # loop
-
-# 6. Version control: GIT
-self._add(p, dfa, q5, V.ML_VERSION_CONTROL, q6)
+self._add(p, dfa, q3, V.ML_DATABASE, q5)              # 5. skips optional group 4
+self._add(p, dfa, q5, V.ML_VERSION_CONTROL, q6)       # 6. GIT
 ```
 
-`_add(profile, dfa, source, tokens, target)` adds one transition `source --token--> target` for each token of the list (it is the same as writing one `add_transition` per token). It also saves the transition in `self.transitions`, which the tests use to check that every automaton is deterministic and has the documented size.
-
-Main methods:
-
-| Method | Description |
-| :--- | :--- |
-| `accepts(profile, sequence)` | Runs the automaton of the profile with `pyformlang` (`dfa.accepts`) and returns `True` or `False`. |
-| `classify(normalized)` | Main entry point of the stage. Runs the four automata on `normalized.profile_sequences` and returns `{profile: "ACCEPTED" / "REJECTED"}`. |
-
-Usage with stages 1 and 2:
+`_add(profile, dfa, source, tokens, target)` adds one transition `source --token--> target` for each token of the list. It also records the transition, so the tests can check determinism and size.
 
 ```python
-from src.model.extraction.resume_extractor import extract_resume_information
-from src.model.normalization.resume_normalizer import ResumeNormalizer
-from src.model.classification.profile_automata import ProfileAutomata
-
-extracted = extract_resume_information(text)       # stage 1
-normalized = ResumeNormalizer().normalize(extracted)   # stage 2
-result = ProfileAutomata().classify(normalized)    # stage 3
+extracted = extract_resume_information(text)            # stage 1
+normalized = ResumeNormalizer().normalize(extracted)    # stage 2
+result = ProfileAutomata().classify(normalized)         # stage 3
 ```
-
-### 6.4 Diagrams
-
-The transition diagrams are in `diagrams/automata/` (`.svg`, and the Graphviz source `.dot`). The style follows the example of the statement: one arrow per token, the loops of a state drawn as one arrow with all their tokens, and a double circle for the accepting state `q6`. They were generated from the transitions of `ProfileAutomata`, so they match the implementation.
 
 ---
 
