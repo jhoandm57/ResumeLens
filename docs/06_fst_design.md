@@ -2,49 +2,23 @@
 
 ## 1. Purpose of the Stage
 
-The extraction stage (see `05_regex_design.md`) preserves every qualification exactly as it appears in the resume. As a consequence, the same qualification can arrive in several different forms:
+The extraction stage (`05_regex_design.md`) keeps every qualification exactly as it appears in the résumé, so the same qualification can arrive in several forms (`JS`, `Javascript`, `JavaScript`). This stage transforms every equivalent variant into one **canonical token** using **Finite-State Transducers (FST)** implemented with `pyformlang`:
 
 ```text
-JS, Javascript, JavaScript
-React, React.js, ReactJS
-Postgres, PostgreSQL
+JS -> JAVASCRIPT    React.js -> REACT    NodeJS -> NODE_JS    Postgres -> POSTGRESQL
 ```
 
-The normalization stage receives these raw strings and transforms every equivalent variant into a single **canonical token**:
-
-```text
-JS          -> JAVASCRIPT
-Javascript  -> JAVASCRIPT
-React.js    -> REACT
-ReactJS     -> REACT
-NodeJS      -> NODE_JS
-Postgres    -> POSTGRESQL
-```
-
-These transformations are modeled with **Finite-State Transducers (FST)** and implemented with `pyformlang`.
-
-After normalization, the canonical tokens are **sorted according to the canonical order of each professional profile**, so that the next stage (finite automata) receives a sequence that does not depend on the order in which the candidate wrote the information.
+The tokens are then **sorted in the canonical order of each profile**, so the automata of the next stage receive a sequence that does not depend on the order used by the candidate. This stage does **not** decide whether the candidate satisfies a profile.
 
 ```text
 Extraction (regex)  ->  Normalization (FST)  ->  Sorting by profile  ->  Recognition (automata)
 ```
 
-This stage does **not** decide whether the candidate satisfies a profile. It only transforms and organizes the information.
-
 ---
 
 ## 2. Requirements of the Stage
 
-According to the project statement, for each transducer the team must:
-
-- Provide the formal definition (complete 7-tuple): `M = (Q, Σ, Γ, δ, ω, q0, F)`.
-- Clearly define the set of states `Q`, the input alphabet `Σ`, the output alphabet `Γ`, the transition relation `δ`, the output relation `ω`, the initial state `q0`, and the set of accepting states `F`.
-- Provide a graphical representation of the transducers.
-- Implement the transformations using `pyformlang`.
-- Propose its own transformations (the ones in the statement are only examples).
-- Prepare the normalized qualifications for the recognition stage, organizing them in the canonical order defined by each profile.
-
-Where each requirement is satisfied:
+The statement asks for the complete 7-tuple of each transducer, a graphical representation, an implementation with `pyformlang`, the team's own transformations, and a canonical order by profile. Where each requirement is satisfied:
 
 | Requirement | Where |
 | :--- | :--- |
@@ -54,7 +28,7 @@ Where each requirement is satisfied:
 | Own transformations | Section 4, class `NormalizationVocabulary` (the vocabulary extends the examples of the statement with the variants of the four profiles) |
 | Canonical order by profile | Section 7, `ResumeNormalizer.sort_for_profile` (with the groups of `ProfileVocabulary`) |
 
-`06a_fst_formal_definitions.md` and `diagrams/fst/` were **generated from the transducers built by the code**, so the formal definitions and the diagrams correspond to the implementation. The number of states of every transducer is checked by the unit tests (Section 11).
+`06a_fst_formal_definitions.md` and `diagrams/fst/` were **generated from the transducers built by the code**, so the formal definitions and the diagrams correspond to the implementation. The number of states of every transducer is checked by the unit tests (Section 10).
 
 ---
 
@@ -179,7 +153,7 @@ The tables show the input variants (after preprocessing) and their canonical tok
 | `apache spark`, `spark` | `SPARK` |
 | `apache airflow`, `airflow` | `AIRFLOW` |
 
-`sklearn` is included because it is one of the examples of the project statement (`sklearn -> SCIKIT_LEARN`). See Section 12 about the extraction stage.
+`sklearn` is included because it is one of the examples of the project statement (`sklearn -> SCIKIT_LEARN`).
 
 ### 4.3 Databases — `M_DB`
 
@@ -428,55 +402,9 @@ F  = { qf }
       (40 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Complete diagram: `diagrams/fst/m_lang.svg`.
+![M_LANG](../diagrams/fst/m_lang.svg)
 
 Note that `javascript` and `js` share the state of the prefix `j`, and both end with the output `JAVASCRIPT`.
-
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    q0 -- "b / ε" --> q1
-    q0 -- "j / ε" --> q2
-    q0 -- "p / ε" --> q3
-    q0 -- "s / ε" --> q4
-    q0 -- "t / ε" --> q5
-    q1 -- "a / ε" --> q6
-    q2 -- "a / ε" --> q7
-    q2 -- "s / ε" --> q8
-    q3 -- "y / ε" --> q9
-    q4 -- "q / ε" --> q10
-    q5 -- "y / ε" --> q11
-    q6 -- "s / ε" --> q12
-    q7 -- "v / ε" --> q13
-    q9 -- "t / ε" --> q14
-    q10 -- "l / ε" --> q15
-    q11 -- "p / ε" --> q16
-    q12 -- "h / ε" --> q17
-    q13 -- "a / ε" --> q18
-    q14 -- "h / ε" --> q19
-    q16 -- "e / ε" --> q20
-    q18 -- "s / ε" --> q21
-    q19 -- "o / ε" --> q22
-    q20 -- "s / ε" --> q23
-    q21 -- "c / ε" --> q24
-    q22 -- "n / ε" --> q25
-    q23 -- "c / ε" --> q26
-    q24 -- "r / ε" --> q27
-    q26 -- "r / ε" --> q28
-    q27 -- "i / ε" --> q29
-    q28 -- "i / ε" --> q30
-    q29 -- "p / ε" --> q31
-    q30 -- "p / ε" --> q32
-    q31 -- "t / ε" --> q33
-    q32 -- "t / ε" --> q34
-    q33 -- "# / JAVASCRIPT" --> qf
-    q8 -- "# / JAVASCRIPT" --> qf
-    q34 -- "# / TYPESCRIPT" --> qf
-    q25 -- "# / PYTHON" --> qf
-    q15 -- "# / SQL" --> qf
-    q17 -- "# / BASH" --> qf
-    qf(((qf)))
-```
 
 ### 6.3 Frameworks and libraries — `M_FW`
 
@@ -495,39 +423,9 @@ F  = { qf }
       (161 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Because the complete diagram has 140 states, the document shows the fragment of the `REACT` and `NODE_JS` variants. The complete diagram is `diagrams/fst/m_fw.svg`.
+![M_FW](../diagrams/fst/m_fw.svg)
 
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    q0 -- "n / ε" --> q1
-    q0 -- "r / ε" --> q2
-    q1 -- "o / ε" --> q3
-    q2 -- "e / ε" --> q4
-    q3 -- "d / ε" --> q5
-    q4 -- "a / ε" --> q6
-    q5 -- "e / ε" --> q7
-    q6 -- "c / ε" --> q8
-    q7 -- ". / ε" --> q9
-    q7 -- "j / ε" --> q10
-    q8 -- "t / ε" --> q11
-    q9 -- "j / ε" --> q12
-    q10 -- "s / ε" --> q13
-    q11 -- ". / ε" --> q14
-    q11 -- "j / ε" --> q15
-    q12 -- "s / ε" --> q16
-    q14 -- "j / ε" --> q17
-    q15 -- "s / ε" --> q18
-    q17 -- "s / ε" --> q19
-    q11 -- "# / REACT" --> qf
-    q19 -- "# / REACT" --> qf
-    q18 -- "# / REACT" --> qf
-    q16 -- "# / NODE_JS" --> qf
-    q13 -- "# / NODE_JS" --> qf
-    qf(((qf)))
-```
-
-The fragment shows the two main ideas of the design:
+This transducer shows the two main ideas of the design:
 
 - `react`, `react.js`, and `reactjs` share the first five states.
 - The output `REACT` is produced only when `#` is read, so `react` (state after `t`) and `react.js` can both be accepted without ambiguity.
@@ -549,40 +447,9 @@ F  = { qf }
       (106 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Complete diagram: `diagrams/fst/m_tools.svg`. Fragment for the `TCP_IP` variants:
+![M_TOOLS](../diagrams/fst/m_tools.svg)
 
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    q0 -- "t / ε" --> t["q_t"]
-    t -- "c / ε" --> tc["q_tc"]
-    tc -- "p / ε" --> tcp["q_tcp"]
-    tcp -- "/ / ε" --> s1["q_tcp/"]
-    tcp -- "␣ / ε" --> sp["q_tcp␣"]
-    tcp -- "i / ε" --> i0["q_tcpi"]
-    sp -- "/ / ε" --> s2["q_tcp␣/"]
-    sp -- "i / ε" --> i1["q_tcp␣i"]
-    s2 -- "␣ / ε" --> s3["q_tcp␣/␣"]
-    s1 -- "␣ / ε" --> s4["q_tcp/␣"]
-    s1 -- "i / ε" --> i2["q_tcp/i"]
-    s2 -- "i / ε" --> i3["q_tcp␣/i"]
-    s3 -- "i / ε" --> i4["q_tcp␣/␣i"]
-    s4 -- "i / ε" --> i5["q_tcp/␣i"]
-    i0 -- "p / ε" --> p0["q_tcpip"]
-    i1 -- "p / ε" --> p1["q_tcp␣ip"]
-    i2 -- "p / ε" --> p2["q_tcp/ip"]
-    i3 -- "p / ε" --> p3["q_tcp␣/ip"]
-    i4 -- "p / ε" --> p4["q_tcp␣/␣ip"]
-    i5 -- "p / ε" --> p5["q_tcp/␣ip"]
-    p0 -- "# / TCP_IP" --> qf(((qf)))
-    p1 -- "# / TCP_IP" --> qf
-    p2 -- "# / TCP_IP" --> qf
-    p3 -- "# / TCP_IP" --> qf
-    p4 -- "# / TCP_IP" --> qf
-    p5 -- "# / TCP_IP" --> qf
-```
-
-(`␣` represents the space character.)
+The six spellings of `TCP/IP` (`tcp/ip`, `tcp ip`, `tcp / ip`, ...) share the prefix `tcp` and all end with the output `TCP_IP`.
 
 ### 6.5 Other qualifications — `M_OTHER`
 
@@ -601,7 +468,7 @@ F  = { qf }
       (145 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Complete diagram: `diagrams/fst/m_other.svg`.
+![M_OTHER](../diagrams/fst/m_other.svg)
 
 This transducer shows why the `#` marker is necessary: `machine learning` is a prefix of `machine learning model development`. In the state reached after `machine learning`:
 
@@ -625,23 +492,9 @@ F  = { qf }
       (125 transitions, complete table in 06a_fst_formal_definitions.md)
 ```
 
-Complete diagram: `diagrams/fst/m_acad.svg`. Fragment for the `PHD` variants:
+![M_ACAD](../diagrams/fst/m_acad.svg)
 
-```mermaid
-flowchart LR
-    start([start]) --> q0
-    q0 -- "p / ε" --> p["q_p"]
-    p -- "h / ε" --> ph["q_ph"]
-    ph -- "d / ε" --> phd["q_phd"]
-    ph -- ". / ε" --> phdot["q_ph."]
-    phdot -- "d / ε" --> phdotd["q_ph.d"]
-    phd -- ". / ε" --> phd2["q_phd."]
-    phdotd -- ". / ε" --> phdotd2["q_ph.d."]
-    phd -- "# / PHD" --> qf(((qf)))
-    phd2 -- "# / PHD" --> qf
-    phdotd -- "# / PHD" --> qf
-    phdotd2 -- "# / PHD" --> qf
-```
+The variants `phd`, `ph.d`, `phd.`, and `ph.d.` share the prefix `ph` and all end with the output `PHD`.
 
 ### 6.7 Professional experience — `M_EXP`
 
@@ -732,7 +585,7 @@ Examples of rejection: `years of experience#` (it does not start with a digit: `
 | `M_ACAD` | 20 | 107 | 24 | 125 | 7 |
 | `M_EXP` | — | 4 | 39 | 87 | 10 (digits) |
 
-These numbers are the ones of the transducers generated by the code (they are also printed in the summary of `06a_fst_formal_definitions.md`). The number of states is checked by the unit tests (Section 11).
+These numbers are the ones of the transducers generated by the code (they are also printed in the summary of `06a_fst_formal_definitions.md`). The number of states is checked by the unit tests (Section 10).
 
 ---
 
@@ -756,49 +609,14 @@ Each profile is divided into **groups**. The groups are written in order, and in
 
 The groups are defined only once in the project, in the class `ProfileVocabulary` (`src/model/classification/profile_vocabulary.py`). This stage uses them to sort the tokens, and the classification stage uses the same groups to build the automata, so the order of the sequence is always the order expected by the automaton.
 
-#### Full Stack Developer
+| Profile | Canonical order (groups separated by `→`) |
+| :--- | :--- |
+| Full Stack Developer | `JAVASCRIPT, TYPESCRIPT` → `REACT, ANGULAR, VUE` → `NODE_JS, DJANGO, SPRING_BOOT` → `REST_API` → `SQL, POSTGRESQL, NOSQL` → `GIT` |
+| Machine Learning Engineer | `PYTHON` → `PANDAS, NUMPY` → `SCIKIT_LEARN, TENSORFLOW, PYTORCH` → `MACHINE_LEARNING, ML_MODEL_DEVELOPMENT` → `SQL, POSTGRESQL` → `GIT` |
+| Cybersecurity Engineer | `PYTHON, BASH` → `LINUX` → `NETWORKING, TCP_IP` → `CYBERSECURITY, NMAP, VULNERABILITY_ASSESSMENT, SECURITY_AUTOMATION` → `DOCKER, KUBERNETES` → `GIT` |
+| Data Engineer | `PYTHON, SQL` → `SPARK` → `AIRFLOW` → `ETL, ELT, DATA_PIPELINE` → `DATA_WAREHOUSING, POSTGRESQL, NOSQL` → `GIT` |
 
-| Order | Group | Tokens |
-| :---: | :--- | :--- |
-| 1 | Frontend language | `JAVASCRIPT`, `TYPESCRIPT` |
-| 2 | Frontend framework | `REACT`, `ANGULAR`, `VUE` |
-| 3 | Backend | `NODE_JS`, `DJANGO`, `SPRING_BOOT` |
-| 4 | API | `REST_API` |
-| 5 | Database | `SQL`, `POSTGRESQL`, `NOSQL` |
-| 6 | Version control | `GIT` |
-
-#### Machine Learning Engineer
-
-| Order | Group | Tokens |
-| :---: | :--- | :--- |
-| 1 | Language | `PYTHON` |
-| 2 | Data libraries | `PANDAS`, `NUMPY` |
-| 3 | ML libraries | `SCIKIT_LEARN`, `TENSORFLOW`, `PYTORCH` |
-| 4 | ML development | `MACHINE_LEARNING`, `ML_MODEL_DEVELOPMENT` |
-| 5 | Database | `SQL`, `POSTGRESQL` |
-| 6 | Version control | `GIT` |
-
-#### Cybersecurity Engineer
-
-| Order | Group | Tokens |
-| :---: | :--- | :--- |
-| 1 | Scripting | `PYTHON`, `BASH` |
-| 2 | Operating system | `LINUX` |
-| 3 | Networking | `NETWORKING`, `TCP_IP` |
-| 4 | Security | `CYBERSECURITY`, `NMAP`, `VULNERABILITY_ASSESSMENT`, `SECURITY_AUTOMATION` |
-| 5 | Containers | `DOCKER`, `KUBERNETES` |
-| 6 | Version control | `GIT` |
-
-#### Data Engineer
-
-| Order | Group | Tokens |
-| :---: | :--- | :--- |
-| 1 | Language | `PYTHON`, `SQL` |
-| 2 | Processing | `SPARK` |
-| 3 | Orchestration | `AIRFLOW` |
-| 4 | Data integration | `ETL`, `ELT`, `DATA_PIPELINE` |
-| 5 | Storage | `DATA_WAREHOUSING`, `POSTGRESQL`, `NOSQL` |
-| 6 | Version control | `GIT` |
+The names of the groups and which ones are optional are in `07_automata_design.md`.
 
 ### 7.3 Sorting rules
 
@@ -813,20 +631,12 @@ Since there are four profiles, the result of this step is **four sequences**, on
 ### 7.4 Example
 
 ```text
-Normalized tokens (resume order):
-GIT, NODE_JS, JAVASCRIPT, POSTGRESQL, REACT
+Normalized tokens (résumé order):  GIT, NODE_JS, JAVASCRIPT, POSTGRESQL, REACT
 
-Sequence for Full Stack Developer:
-JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
-
-Sequence for Machine Learning Engineer:
-POSTGRESQL, GIT
-
-Sequence for Cybersecurity Engineer:
-GIT
-
-Sequence for Data Engineer:
-POSTGRESQL, GIT
+FULL_STACK_DEVELOPER       -> JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
+MACHINE_LEARNING_ENGINEER  -> POSTGRESQL, GIT
+CYBERSECURITY_ENGINEER     -> GIT
+DATA_ENGINEER              -> POSTGRESQL, GIT
 ```
 
 The Full Stack sequence is exactly the one expected by the project statement.
@@ -867,104 +677,22 @@ class NormalizedData:
     profile_sequences: dict[str, list[str]]
 ```
 
-Example for Wednesday Addams:
-
-```text
-name                    = Wednesday Addams
-emails                  = []
-phones                  = []
-programming_languages   = [JAVASCRIPT]
-frameworks_libraries    = [REACT, NODE_JS]
-databases               = [POSTGRESQL]
-tools_technologies      = [GIT]
-other_qualifications    = []
-academic_qualifications = []
-experience_years        = 3
-experience_entries      = ["3 years of experience"]
-qualifications          = [JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT]
-profile_sequences       = {
-    FULL_STACK_DEVELOPER:      [JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT],
-    MACHINE_LEARNING_ENGINEER: [POSTGRESQL, GIT],
-    CYBERSECURITY_ENGINEER:    [GIT],
-    DATA_ENGINEER:             [POSTGRESQL, GIT],
-}
-```
+Example for Wednesday Addams: `programming_languages = [JAVASCRIPT]`, `frameworks_libraries = [REACT, NODE_JS]`, `databases = [POSTGRESQL]`, `tools_technologies = [GIT]`, `experience_years = 3`, and `profile_sequences[FULL_STACK_DEVELOPER] = [JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT]` (the other sequences are shown in Section 7.4).
 
 ---
 
-## 9. Implementation Guide
+## 9. Implementation (pyformlang)
 
-### 9.1 File structure
+| File (`src/model/normalization/`) | Responsibility |
+| :--- | :--- |
+| `normalization_vocabulary.py` | `NormalizationVocabulary`: the tables of Section 4 (variant -> token). Only data. |
+| `normalization_transducers.py` | `NormalizationTransducers`: builds the 7 transducers with `pyformlang` and translates strings. |
+| `resume_normalizer.py` | `ResumeNormalizer.normalize(extracted)`: applies the transducers to `ExtractedData`, removes duplicates, keeps the maximum experience, sorts by profile, and returns `NormalizedData`. |
+| `normalized_data.py` | `NormalizedData` (Section 8). |
 
-The stage has **3 classes**, one per responsibility, plus the output data structure:
+Diagrams: `diagrams/fst/*.svg` (Graphviz sources `.dot`). Tests: `tests/normalization/`.
 
-```text
-src/model/normalization/
-    __init__.py
-    normalization_vocabulary.py    # class NormalizationVocabulary: tables of Section 4 (variant -> token)
-    normalization_transducers.py   # class NormalizationTransducers: builds the 7 transducers (pyformlang) and translates
-    resume_normalizer.py           # class ResumeNormalizer: main entry point of the stage
-    normalized_data.py             # NormalizedData dataclass (output of the stage)
-
-diagrams/fst/                      # m_lang, m_fw, m_db, m_tools, m_other, m_acad, m_exp (.svg and .dot)
-
-docs/06a_fst_formal_definitions.md # Complete 7-tuples and δ / ω tables
-
-tests/normalization/
-    test_normalization_transducers.py
-    test_resume_normalizer.py
-```
-
-| Class | Responsibility | Sections of this document |
-| :--- | :--- | :--- |
-| `NormalizationVocabulary` | Only data: the transformations proposed by the team | 4 |
-| `NormalizationTransducers` | Formal part: builds the transducers and translates strings | 3, 5, 6 |
-| `ResumeNormalizer` | Flow of the stage: applies the transducers to `ExtractedData`, removes duplicates, keeps the maximum experience, sorts by profile, and returns `NormalizedData` | 3.7, 7, 8 |
-
-### 9.2 `NormalizationVocabulary`
-
-Only defines the tables of Section 4 as dictionaries. It does not build transducers.
-
-```python
-class NormalizationVocabulary:
-    LANGUAGES = {
-        "javascript": "JAVASCRIPT",
-        "js": "JAVASCRIPT",
-        "typescript": "TYPESCRIPT",
-        "python": "PYTHON",
-        "sql": "SQL",
-        "bash": "BASH",
-    }
-
-    DATABASES = {
-        "postgresql": "POSTGRESQL",
-        "postgres": "POSTGRESQL",
-        "nosql": "NOSQL",
-        "sql": "SQL",
-    }
-
-    # FRAMEWORKS, TOOLS, OTHER, ACADEMIC follow the same format.
-```
-
-To add a new variant (for example `vue.js`), only one line has to be added to the table of its category.
-
-### 9.3 `NormalizationTransducers`
-
-The constructor builds the seven transducers once:
-
-```python
-class NormalizationTransducers:
-    def __init__(self):
-        self.languages = self.build_dictionary_fst(V.LANGUAGES)        # M_LANG
-        self.frameworks = self.build_dictionary_fst(V.FRAMEWORKS)      # M_FW
-        self.databases = self.build_dictionary_fst(V.DATABASES)        # M_DB
-        self.tools = self.build_dictionary_fst(V.TOOLS)                # M_TOOLS
-        self.other = self.build_dictionary_fst(V.OTHER)                # M_OTHER
-        self.academic = self.build_dictionary_fst(V.ACADEMIC)          # M_ACAD
-        self.experience = self.build_experience_fst()                  # M_EXP
-```
-
-`build_dictionary_fst` implements the construction of Section 5 (one state per prefix):
+`build_dictionary_fst` implements the construction of Section 5 (one state per prefix). In `pyformlang`, `add_transition(s_from, input_symbol, s_to, output_symbols)` receives the output as a list; an empty list is `ε`:
 
 ```python
 fst = FST()
@@ -988,113 +716,28 @@ for variant, token in vocabulary.items():
 
 ```python
 for digit in DIGITS:
-    fst.add_transition("q0", digit, "q1", [digit])     # first digit
-    fst.add_transition("q1", digit, "q1", [digit])     # more digits
-    fst.add_transition("q2", digit, "q2", [])          # digits after the number
-
+    fst.add_transition("q0", digit, "q1", [digit])     # first digit (copied)
+    fst.add_transition("q1", digit, "q1", [digit])     # more digits (copied)
+    fst.add_transition("q2", digit, "q2", [])          # digits after the number (erased)
 for symbol in LETTERS + ["+", " "]:
     fst.add_transition("q1", symbol, "q2", [])         # end of the number
     fst.add_transition("q2", symbol, "q2", [])         # rest of the expression
-
 fst.add_transition("q2", "#", "qf", [])
 ```
 
-### 9.4 Translation with pyformlang
+Translation: the string is preprocessed (Section 3.3), split into a list of characters, and `#` is appended. Since the transducers are deterministic, `fst.translate(...)` produces at most one output. If there is no output, the input is rejected (`None`):
 
 ```python
-def preprocess(text):
-    text = text.lower().replace("’", "'")
-    return " ".join(text.split())
-
-
 def translate(self, fst, text):
     input_word = list(self.preprocess(text)) + ["#"]
     for output in fst.translate(input_word):
-        return "".join(str(symbol) for symbol in output)   # deterministic: one output
-    return None                                            # rejected input
-```
-
-Notes for the implementation:
-
-- In `pyformlang`, `add_transition(s_from, input_symbol, s_to, output_symbols)` receives the output as a list of symbols; an empty list represents `ε`.
-- The input is a list of characters, so multi-character strings are never treated as a single symbol.
-- The graphical representation of each transducer is in `diagrams/fst/` (`.svg` and Graphviz `.dot`).
-
-### 9.5 `ResumeNormalizer`
-
-Main entry point of the stage:
-
-```python
-normalizer = ResumeNormalizer()
-normalized = normalizer.normalize(extracted)      # ExtractedData -> NormalizedData
-```
-
-Steps of `normalize`:
-
-1. Translate each list of `ExtractedData` with the transducer of its category (`normalize_list`).
-2. Remove rejected inputs (`None`) and duplicates, keeping the first appearance.
-3. Translate `professional_experience` with `M_EXP` and keep the maximum (`normalize_experience`). The expressions accepted by `M_EXP` are also kept as they were written, without duplicates (`experience_entries`), so the candidate profile (stage 4) can list each professional experience.
-4. Build `qualifications` joining the technical categories without duplicates.
-5. Build `profile_sequences` with `sort_for_profile` for each profile.
-6. Copy the name, emails, and phones of `ExtractedData` without changes.
-
-`sort_for_profile` uses the groups of `ProfileVocabulary` (Section 7.2):
-
-```python
-def sort_for_profile(tokens, profile):
-    order = [token for group in ProfileVocabulary.GROUPS[profile] for token in group]
-    kept = {token for token in tokens if token in order}     # only the tokens of the profile
-    return sorted(kept, key=order.index)                     # canonical order, no duplicates
+        return "".join(str(symbol) for symbol in output)
+    return None
 ```
 
 ---
 
-## 10. Example of the Complete Normalization Process
-
-### 10.1 Full Stack Developer
-
-```text
-Extracted (ExtractedData)
-    programming_languages   = [JS]
-    frameworks_libraries    = [React.js, NodeJS]
-    databases               = [Postgres]
-    tools_technologies      = [Git]
-    professional_experience = [3 years of experience]
-
-Normalization (FST)
-    JS                      -> JAVASCRIPT
-    React.js                -> REACT
-    NodeJS                  -> NODE_JS
-    Postgres                -> POSTGRESQL
-    Git                     -> GIT
-    3 years of experience   -> 3
-
-Sequence for FULL_STACK_DEVELOPER
-    JAVASCRIPT, REACT, NODE_JS, POSTGRESQL, GIT
-```
-
-### 10.2 Machine Learning Engineer
-
-```text
-Extracted
-    Python, Pandas, NumPy, Scikit-learn, TensorFlow, SQL, Git
-
-Normalization (FST)
-    Python        -> PYTHON
-    Pandas        -> PANDAS
-    NumPy         -> NUMPY
-    Scikit-learn  -> SCIKIT_LEARN
-    TensorFlow    -> TENSORFLOW
-    SQL           -> SQL           (extracted twice: language and database; kept once)
-    Git           -> GIT
-
-Sequence for MACHINE_LEARNING_ENGINEER
-    PYTHON, PANDAS, NUMPY, SCIKIT_LEARN, TENSORFLOW, SQL, GIT
-```
-
----
-
-## 11. Test Cases for this Stage
+## 10. Test Cases for this Stage
 
 | Test | Input | Expected result |
 | :--- | :--- | :--- |
@@ -1114,23 +757,3 @@ Sequence for MACHINE_LEARNING_ENGINEER
 | Experience without number or without text | `years of experience`, `3` | No output (`None`) |
 | Size of the transducers | Build each FST | Number of states of Section 6.8 |
 | Name and contact | `ExtractedData(name="Wednesday Addams")` | `NormalizedData.name == "Wednesday Addams"` (not normalized) |
-
----
-
-## 12. Consistency with the Extraction Stage
-
-The vocabulary of each transducer must be the same as the vocabulary of the corresponding regular expression of `05_regex_design.md`. The differences found while designing this stage were corrected in the extraction stage:
-
-- `sklearn` (an example of the statement) is now extracted by `FRAMEWORKS_LIBRARIES_PATTERN` and normalized to `SCIKIT_LEARN`.
-- `Linux` (Cybersecurity profile) is now extracted by `TOOLS_TECHNOLOGIES_PATTERN`; the token `LINUX` was added to `M_TOOLS` and to the Cybersecurity order (Section 7.2).
-- The structure of the experience expressions is validated only once, by `EXPERIENCE_PATTERN`; `M_EXP` only separates the number from the rest of the expression (Section 6.7).
-- `Vue.js` is extracted as `Vue`, so it is normalized correctly to `VUE`.
-
----
-
-## 13. Design Principles
-
-- **One responsibility:** this stage only transforms and organizes; it does not classify.
-- **Determinism:** every transducer is deterministic and produces at most one output for each input.
-- **Single source of truth:** the tables of Section 4 (`NormalizationVocabulary`) are used to build the transducers automatically, and the profile groups are defined only once (`ProfileVocabulary`), so the document, the vocabulary, the sorting, and the automata stay consistent.
-- **Independence of the order:** the sorting by profile guarantees that two resumes with the same qualifications in different order produce the same sequence.
